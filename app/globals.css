@@ -1,26 +1,268 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Rich library-inspired brown palette for light mode - warm, scholarly tones */
+  --background: oklch(0.97 0.012 50); /* Warm off-white like aged paper */
+  --foreground: oklch(0.22 0.03 45); /* Deep brown-black for text */
+  --card: oklch(0.98 0.01 55); /* Light cream card background */
+  --card-foreground: oklch(0.22 0.03 45);
+  --popover: oklch(0.98 0.01 55);
+  --popover-foreground: oklch(0.22 0.03 45);
+  --primary: oklch(0.45 0.09 42); /* Rich cognac brown */
+  --primary-foreground: oklch(0.98 0.01 55);
+  --secondary: oklch(0.88 0.025 48); /* Light tan */
+  --secondary-foreground: oklch(0.28 0.04 45);
+  --muted: oklch(0.92 0.018 50); /* Soft beige */
+  --muted-foreground: oklch(0.48 0.05 45); /* Medium brown */
+  --accent: oklch(0.58 0.11 40); /* Amber accent like old book bindings */
+  --accent-foreground: oklch(0.98 0.01 55);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 55);
+  --border: oklch(0.86 0.022 48); /* Subtle brown border */
+  --input: oklch(0.86 0.022 48);
+  --ring: oklch(0.45 0.09 42);
+  --radius: 0.5rem;
+
+  /* Chart colors in brown/amber tones */
+  --chart-1: oklch(0.52 0.13 38);
+  --chart-2: oklch(0.62 0.11 45);
+  --chart-3: oklch(0.48 0.09 35);
+  --chart-4: oklch(0.68 0.15 48);
+  --chart-5: oklch(0.58 0.12 42);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Tron glow variables (not active in light mode) */
+  --glow-color: transparent;
+  --glow-intensity: 0;
+}
+
+/* Tron-inspired dark theme with neon cyan accents and deep blacks */
+.dark {
+  color-scheme: dark;
+
+  /* Tron-inspired palette - deep blacks with electric cyan/blue glow */
+  --background: oklch(0.08 0.01 240); /* Near-black with slight blue tint */
+  --foreground: oklch(0.92 0.02 200); /* Cool light text */
+  --card: oklch(0.12 0.015 240); /* Slightly lighter dark panel */
+  --card-foreground: oklch(0.92 0.02 200);
+  --popover: oklch(0.1 0.012 240);
+  --popover-foreground: oklch(0.92 0.02 200);
+  --primary: oklch(0.75 0.18 195); /* Electric cyan - main Tron color */
+  --primary-foreground: oklch(0.08 0.01 240);
+  --secondary: oklch(0.18 0.02 240); /* Dark blue-gray */
+  --secondary-foreground: oklch(0.85 0.12 195);
+  --muted: oklch(0.16 0.015 240); /* Muted dark */
+  --muted-foreground: oklch(0.6 0.04 200); /* Dimmed cyan-gray */
+  --accent: oklch(0.7 0.2 190); /* Bright cyan accent */
+  --accent-foreground: oklch(0.08 0.01 240);
+  --destructive: oklch(0.6 0.22 25); /* Orange-red for destructive */
+  --destructive-foreground: oklch(0.95 0.01 55);
+  --border: oklch(0.28 0.06 200); /* Glowing cyan border */
+  --input: oklch(0.15 0.02 240);
+  --ring: oklch(0.75 0.18 195);
+
+  /* Tron-style chart colors - neon spectrum */
+  --chart-1: oklch(0.75 0.18 195); /* Cyan */
+  --chart-2: oklch(0.7 0.2 280); /* Purple */
+  --chart-3: oklch(0.65 0.2 145); /* Green */
+  --chart-4: oklch(0.7 0.18 60); /* Orange */
+  --chart-5: oklch(0.75 0.15 320); /* Pink */
+
+  --sidebar: oklch(0.1 0.012 240);
+  --sidebar-foreground: oklch(0.92 0.02 200);
+  --sidebar-primary: oklch(0.75 0.18 195);
+  --sidebar-primary-foreground: oklch(0.08 0.01 240);
+  --sidebar-accent: oklch(0.15 0.02 240);
+  --sidebar-accent-foreground: oklch(0.85 0.12 195);
+  --sidebar-border: oklch(0.25 0.05 200);
+  --sidebar-ring: oklch(0.75 0.18 195);
+
+  /* Tron glow variables */
+  --glow-color: oklch(0.75 0.18 195);
+  --glow-intensity: 1;
+}
+
+/* Custom scrollbar styling for library aesthetic */
+/* Enhanced scrollbar styling with better visuals and smooth transitions */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.58 0.11 40) oklch(0.92 0.018 50);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: oklch(0.92 0.018 50);
+  border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, oklch(0.62 0.1 45), oklch(0.52 0.1 40));
+  border-radius: 5px;
+  border: 2px solid oklch(0.92 0.018 50);
+  transition: background 0.3s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, oklch(0.55 0.12 42), oklch(0.45 0.1 38));
+}
+
+*::-webkit-scrollbar-corner {
+  background: oklch(0.92 0.018 50);
+}
+
+/* Tron-style scrollbar for dark mode with cyan glow */
+.dark * {
+  scrollbar-color: oklch(0.5 0.15 195) oklch(0.1 0.01 240);
+}
+
+.dark *::-webkit-scrollbar-track {
+  background: oklch(0.1 0.01 240);
+  box-shadow: inset 0 0 6px oklch(0.3 0.1 195 / 0.3);
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, oklch(0.6 0.15 195), oklch(0.4 0.12 200));
+  border-color: oklch(0.1 0.01 240);
+  box-shadow: 0 0 8px oklch(0.75 0.18 195 / 0.5);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, oklch(0.75 0.18 195), oklch(0.55 0.15 200));
+  box-shadow: 0 0 12px oklch(0.75 0.18 195 / 0.8);
+}
+
+.dark *::-webkit-scrollbar-corner {
+  background: oklch(0.1 0.01 240);
 }
 
 @theme inline {
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Animation keyframes for smooth transitions */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Tron-style glow pulse animation for dark mode */
+@keyframes tron-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px oklch(0.75 0.18 195 / 0.5), 0 0 10px oklch(0.75 0.18 195 / 0.3), 0 0 15px
+      oklch(0.75 0.18 195 / 0.1);
+  }
+  50% {
+    box-shadow: 0 0 10px oklch(0.75 0.18 195 / 0.8), 0 0 20px oklch(0.75 0.18 195 / 0.5), 0 0 30px
+      oklch(0.75 0.18 195 / 0.2);
+  }
+}
+
+@keyframes tron-text-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 5px oklch(0.75 0.18 195 / 0.5), 0 0 10px oklch(0.75 0.18 195 / 0.3);
+  }
+  50% {
+    text-shadow: 0 0 10px oklch(0.75 0.18 195 / 0.8), 0 0 20px oklch(0.75 0.18 195 / 0.5);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+/* Tron glow utility classes for dark mode */
+.dark .tron-glow {
+  animation: tron-glow 2s ease-in-out infinite;
+}
+
+.dark .tron-text-glow {
+  animation: tron-text-glow 2s ease-in-out infinite;
+}
+
+.dark .tron-border {
+  box-shadow: 0 0 8px oklch(0.75 0.18 195 / 0.5), inset 0 0 8px oklch(0.75 0.18 195 / 0.1);
+}
+
+.dark .tron-border:hover {
+  box-shadow: 0 0 15px oklch(0.75 0.18 195 / 0.7), inset 0 0 12px oklch(0.75 0.18 195 / 0.2);
 }

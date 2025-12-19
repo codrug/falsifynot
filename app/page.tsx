@@ -1,103 +1,259 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  FileText,
+  ImageIcon,
+  Mic,
+  Video,
+  LinkIcon,
+  Shield,
+  Search,
+  CheckCircle2,
+  ArrowRight,
+  Upload,
+  LayoutDashboard,
+  Github,
+  BookOpen,
+  Code2,
+} from "lucide-react"
+
+export default function LandingPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 animate-fade-in hover:opacity-80 transition-opacity">
+            <Shield className="h-8 w-8 text-primary animate-pulse" />
+            <h1 className="text-2xl font-bold text-foreground">FalsifyNot</h1>
+          </Link>
+          <nav className="flex items-center gap-6">
+            <Link
+              href="/upload"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Upload</span>
+            </Link>
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+            <Link
+              href="/docs"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Docs</span>
+            </Link>
+            <Link
+              href="/api-access"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+            >
+              <Code2 className="h-4 w-4" />
+              <span className="hidden sm:inline">API</span>
+            </Link>
+            <ThemeToggle />
+          </nav>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </header>
+
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-20 md:py-32 animate-fade-in-up">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <h2
+            className="text-4xl md:text-6xl font-bold text-foreground text-balance animate-fade-in-up"
+            style={{ animationDelay: "0.1s" }}
+          >
+            AI‑Powered Multimodal Fake News Verification
+          </h2>
+          <p
+            className="text-xl md:text-2xl text-muted-foreground text-pretty animate-fade-in-up"
+            style={{ animationDelay: "0.2s" }}
+          >
+            Upload any content—text, image, audio, video, web links—and get AI‑driven evidence, provenance, and
+            contradictions.
+          </p>
+          <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+            <Button
+              asChild
+              size="lg"
+              className="text-lg px-8 py-6 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+            >
+              <Link href="/upload">
+                Start Verifying <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="container mx-auto px-4 py-20 bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <h3 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground">How It Works</h3>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: FileText,
+                title: "Upload Content",
+                desc: "Submit text, images, audio, video, or web links for analysis",
+              },
+              {
+                icon: Search,
+                title: "AI Analysis",
+                desc: "Our AI extracts claims and searches for evidence across multiple sources",
+              },
+              {
+                icon: CheckCircle2,
+                title: "Get Results",
+                desc: "Review detailed verdicts with confidence scores and supporting evidence",
+              },
+            ].map((step, idx) => (
+              <Card
+                key={idx}
+                className="p-6 space-y-4 transition-all duration-300 hover:shadow-lg hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${0.1 * (idx + 1)}s` }}
+              >
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 hover:bg-primary/20">
+                  <step.icon className="h-6 w-6 text-primary" />
+                </div>
+                <h4 className="text-xl font-semibold text-card-foreground">{step.title}</h4>
+                <p className="text-muted-foreground">{step.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Supported Modalities Section */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-6xl mx-auto">
+          <h3 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground">Supported Modalities</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            {[
+              { icon: FileText, label: "Text", color: "text-chart-1" },
+              { icon: ImageIcon, label: "Images", color: "text-chart-2" },
+              { icon: Mic, label: "Audio", color: "text-chart-3" },
+              { icon: Video, label: "Video", color: "text-chart-4" },
+              { icon: LinkIcon, label: "Web Links", color: "text-chart-5" },
+            ].map((modality, idx) => (
+              <Card
+                key={idx}
+                className="p-8 flex flex-col items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-110 animate-fade-in-up cursor-pointer"
+                style={{ animationDelay: `${0.1 * idx}s` }}
+              >
+                <modality.icon className={`h-10 w-10 ${modality.color} transition-all duration-300`} />
+                <span className="font-medium text-card-foreground">{modality.label}</span>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Spacer to push footer down */}
+      <div className="flex-1" />
+
+      <footer className="border-t border-border bg-card/50 backdrop-blur-sm mt-20">
+        <div className="container mx-auto px-4 py-12">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            {/* Brand */}
+            <div className="space-y-4">
+              <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Shield className="h-6 w-6 text-primary" />
+                <span className="text-lg font-bold text-foreground">FalsifyNot</span>
+              </Link>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                AI-powered multimodal fake news verification system for researchers and fact-checkers.
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground">Quick Links</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/upload" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Upload Content
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Documentation
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/api-access" className="text-muted-foreground hover:text-foreground transition-colors">
+                    API Access
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground">Resources</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/research" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Research Paper
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/methodology" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Methodology
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Terms of Use
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Code */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground">Code</h4>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-center gap-4 pt-2">
+                  <a
+                    href="https://github.com/codrug/FalsifyNot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Github className="h-5 w-5" />
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="border-t border-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <p>© 2025 FalsifyNot. Capstone project for multimodal fake news verification.</p>
+            <p>Built with AI-powered verification technology</p>
+          </div>
+        </div>
       </footer>
     </div>
-  );
+  )
 }
