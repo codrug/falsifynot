@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: falsifynot-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+    volumes:
+      - ./backend:/app
+      - backend_cache:/root/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - falsifynot-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: falsifynot-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - falsifynot-network
+
+volumes:
+  backend_cache:
+
+
+networks:
+  falsifynot-network:
+    driver: bridge
