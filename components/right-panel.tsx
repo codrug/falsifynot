@@ -1,7 +1,6 @@
 "use client"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { EvidenceCard } from "./evidence-card"
 import { ProvenanceGraphPlaceholder } from "./provenance-graph"
 import { ExplainabilityTabs } from "./explainability-tabs"
 import { MediaViewer } from "./media-viewer"
@@ -43,21 +42,7 @@ export function RightPanel({ claimIndex, claimData }: RightPanelProps) {
 
         <TabsContent value="evidence" className="space-y-6 mt-2 animate-fade-in">
           <h3 className="font-semibold text-lg text-foreground mb-4">Evidence Sources</h3>
-          <EvidenceCard
-            source="Nature Climate Change"
-            snippet="Recent peer-reviewed studies demonstrate significant trends..."
-            score={0.92}
-          />
-          <EvidenceCard
-            source="NOAA Research Database"
-            snippet="Historical data analysis shows correlation with temperature..."
-            score={0.88}
-          />
-          <EvidenceCard
-            source="IPCC Report 2023"
-            snippet="Climate models predict continued patterns based on..."
-            score={0.85}
-          />
+          <Card className="p-6 text-sm text-muted-foreground">Evidence retrieval is not enabled yet for this pipeline.</Card>
         </TabsContent>
 
         <TabsContent value="provenance" className="mt-2 animate-fade-in">

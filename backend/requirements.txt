@@ -7,5 +7,15 @@ pydantic-settings==2.7.1
 # CORS
 python-multipart==0.0.20
 
+# Database
+sqlalchemy>=2.0.36
+alembic==1.13.1
+psycopg[binary]
+pgvector==0.2.4
+
 # Development
 python-dotenv==1.0.1
+
+# ML Inference
+torch
+transformers

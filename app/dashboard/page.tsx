@@ -1,43 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ClaimList, mockClaims } from "@/components/claim-list"
+import { ClaimList } from "@/components/claim-list"
 import { AnalysisPanel } from "@/components/analysis-panel"
 import { RightPanel } from "@/components/right-panel"
-import { Shield, Files, FileText, ImageIcon, Video, Mic } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-const mockUploadedFiles = [
-  { id: "file-1", name: "climate-article.pdf", type: "text", claimIds: [1, 4] },
-  { id: "file-2", name: "food-myths.txt", type: "text", claimIds: [2] },
-  { id: "file-3", name: "space-documentary.mp4", type: "video", claimIds: [3] },
-  { id: "file-4", name: "health-podcast.mp3", type: "audio", claimIds: [5] },
-]
+import { Shield } from "lucide-react"
+import type { StoredClaim } from "@/lib/api"
 
 export default function DashboardPage() {
+  const [claims, setClaims] = useState<StoredClaim[]>([])
   const [selectedClaim, setSelectedClaim] = useState(0)
-  const [selectedFile, setSelectedFile] = useState<string>("all")
 
-  const filteredClaims =
-    selectedFile === "all" ? mockClaims : mockClaims.filter((claim) => claim.fileId === selectedFile)
-  const currentClaim = filteredClaims[selectedClaim]
-
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case "text":
-        return FileText
-      case "image":
-        return ImageIcon
-      case "video":
-        return Video
-      case "audio":
-        return Mic
-      default:
-        return FileText
+  useEffect(() => {
+    const serialized = sessionStorage.getItem("falsifynot.claims")
+    if (!serialized) {
+      setClaims([])
+      return
     }
-  }
+
+    try {
+      const parsed = JSON.parse(serialized)
+      if (Array.isArray(parsed)) {
+        setClaims(parsed as StoredClaim[])
+      }
+    } catch {
+      setClaims([])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedClaim > 0 && selectedClaim >= claims.length) {
+      setSelectedClaim(0)
+    }
+  }, [claims, selectedClaim])
+
+  const currentClaim = claims[selectedClaim]
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,43 +57,17 @@ export default function DashboardPage() {
       <div className="flex h-[calc(100vh-73px)]">
         {/* Left Sidebar - Claims List */}
         <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
-          <div className="p-4 border-b border-border sticky top-0 bg-card/80 backdrop-blur-sm z-10">
-            <Select value={selectedFile} onValueChange={setSelectedFile}>
-              <SelectTrigger className="w-full transition-all duration-300 hover:border-primary">
-                <SelectValue placeholder="Select file" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  <div className="flex items-center gap-2">
-                    <Files className="h-4 w-4" />
-                    <span>All Files</span>
-                  </div>
-                </SelectItem>
-                {mockUploadedFiles.map((file) => {
-                  const Icon = getFileIcon(file.type)
-                  return (
-                    <SelectItem key={file.id} value={file.id}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span className="truncate">{file.name}</span>
-                      </div>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-          <ClaimList selectedClaim={selectedClaim} setSelectedClaim={setSelectedClaim} selectedFile={selectedFile} />
+          <ClaimList claims={claims} selectedClaim={selectedClaim} setSelectedClaim={setSelectedClaim} />
         </aside>
 
         {/* Center Panel - Analysis */}
         <main className="flex-1 overflow-y-auto">
-          <AnalysisPanel claimIndex={selectedClaim} />
+          <AnalysisPanel claim={currentClaim} claimIndex={selectedClaim} />
         </main>
 
         {/* Right Panel - Tabs */}
         <aside className="w-96 border-l border-border bg-card/30 overflow-y-auto">
-          <RightPanel claimIndex={selectedClaim} claimData={currentClaim} />
+          <RightPanel claimIndex={selectedClaim} claimData={{ hasMedia: false, hasVideo: false, hasAudio: false, hasOCR: false }} />
         </aside>
       </div>
     </div>

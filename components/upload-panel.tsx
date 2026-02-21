@@ -69,7 +69,7 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
 
   const addTextItem = () => {
     if (currentText.trim()) {
-      setTextItems([...textItems, { id: Date.now().toString(), content: currentText }])
+      setTextItems([...textItems, { id: crypto.randomUUID(), content: currentText }])
       setCurrentText("")
     }
   }
@@ -86,7 +86,7 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
 
   const addUrlItem = () => {
     if (currentUrl.trim()) {
-      setUrlItems([...urlItems, { id: Date.now().toString(), url: currentUrl }])
+      setUrlItems([...urlItems, { id: crypto.randomUUID(), url: currentUrl }])
       setCurrentUrl("")
     }
   }

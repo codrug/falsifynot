@@ -1,5 +1,7 @@
 """Main FastAPI application entry point."""
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +9,9 @@ import logging
 
 from app.core import settings, setup_logging, get_logger
 from app.api import router
+from app.ml.claim_model import ClaimModel
+from app.services.claim_service import ClaimExtractionService
+from app.services.pipeline_service import VerificationPipeline
 
 
 # Setup logging
@@ -28,7 +33,10 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,6 +53,33 @@ async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info(f"CORS origins: {settings.CORS_ORIGINS}")
+
+    model_path = Path(settings.CLAIM_MODEL_PATH)
+    if not model_path.is_absolute():
+        model_path = (Path(__file__).resolve().parents[1] / model_path).resolve()
+
+    required_files = [
+        "config.json",
+        "model.safetensors",
+        "tokenizer.json",
+        "tokenizer_config.json",
+    ]
+    missing_files = [name for name in required_files if not (model_path / name).exists()]
+    if missing_files:
+        raise RuntimeError(
+            f"Claim model artifacts missing in {model_path}. Missing: {missing_files}"
+        )
+
+    logger.info("Loading claim model from: %s", model_path)
+
+    claim_model = ClaimModel(model_path=model_path)
+    app.state.claim_model = claim_model
+    claim_service = ClaimExtractionService(
+        claim_model=claim_model,
+        confidence_threshold=settings.CLAIM_CONFIDENCE_THRESHOLD,
+    )
+    app.state.verification_pipeline = VerificationPipeline(claim_service=claim_service)
+    logger.info("Verification pipeline initialized")
 
 
 @app.on_event("shutdown")

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UploadPanel } from "@/components/upload-panel"
 import { Shield, ArrowRight } from "lucide-react"
+import { analyzeText, type StoredClaim, type TextAnalysis } from "@/lib/api"
 
 interface TextItem {
   id: string
@@ -23,9 +24,48 @@ export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([])
   const [textItems, setTextItems] = useState<TextItem[]>([])
   const [urlItems, setUrlItems] = useState<UrlItem[]>([])
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleAnalyze = () => {
-    router.push("/dashboard?case_id=static-demo")
+  const handleAnalyze = async () => {
+    const validTextItems = textItems.map((item) => ({ ...item, content: item.content.trim() })).filter((item) => item.content)
+    if (validTextItems.length === 0) {
+      setErrorMessage("Add at least one text item to analyze.")
+      return
+    }
+
+    setIsAnalyzing(true)
+    setErrorMessage(null)
+    try {
+      const analyses: TextAnalysis[] = []
+
+      for (const item of validTextItems) {
+        const result = await analyzeText(item.content)
+        analyses.push({
+          textId: item.id,
+          inputText: item.content,
+          claims: result.claims,
+        })
+      }
+
+      const flattenedClaims: StoredClaim[] = analyses.flatMap((analysis) =>
+        analysis.claims.map((claim) => ({
+          ...claim,
+          sourceTextId: analysis.textId,
+          sourceText: analysis.inputText,
+        })),
+      )
+
+      sessionStorage.setItem("falsifynot.inputTexts", JSON.stringify(validTextItems))
+      sessionStorage.setItem("falsifynot.analyses", JSON.stringify(analyses))
+      sessionStorage.setItem("falsifynot.claims", JSON.stringify(flattenedClaims))
+      router.push("/dashboard")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to analyze content"
+      setErrorMessage(message)
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   const hasContent = files.length > 0 || textItems.length > 0 || urlItems.length > 0
@@ -69,11 +109,12 @@ export default function UploadPage() {
                 size="lg"
                 className="px-12 py-6 text-lg transition-all duration-300 hover:scale-105 hover:shadow-lg"
                 onClick={handleAnalyze}
-                disabled={!hasContent}
+                disabled={!hasContent || isAnalyzing}
               >
-                Analyze Content <ArrowRight className="ml-2 h-5 w-5" />
+                {isAnalyzing ? "Analyzing..." : "Analyze Content"} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
+            {errorMessage && <p className="text-sm text-destructive text-center">{errorMessage}</p>}
           </div>
 
           {/* Right Column - Fixed sidebar showing all uploaded content */}

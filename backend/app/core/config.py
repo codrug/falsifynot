@@ -21,9 +21,16 @@ class Settings(BaseSettings):
     PORT: int = 8000
     DEBUG: bool = True
     
+    # Database Settings
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/falsifynot"
+    
     # Logging Settings
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"  # or "text"
+
+    # ML Settings
+    CLAIM_MODEL_PATH: str = "../../claim_extractor_model/claim_extractor_model"
+    CLAIM_CONFIDENCE_THRESHOLD: float = 0.5
     
     @model_validator(mode="after")
     def parse_cors_origins(self):
