@@ -26,11 +26,17 @@ class Settings(BaseSettings):
     
     # Logging Settings
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "json"  # or "text"
 
-    # ML Settings
-    CLAIM_MODEL_PATH: str = "app/ml/claim_extractor_model"
+    # ML Settings - Claim Extraction
+    CLAIM_MODEL_PATH: str = "models/claim_extractor"
     CLAIM_CONFIDENCE_THRESHOLD: float = 0.5
+    
+    # ML Settings - Retrieval
+    RETRIEVAL_EMBEDDINGS_PATH: str = "models/retrieval/wiki_embeddings.pt"
+    RETRIEVAL_CORPUS_PATH: str = "models/retrieval/wiki_retrieval_sample.csv"
+    RETRIEVAL_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    RETRIEVAL_TOP_K: int = 5
+    RETRIEVAL_DEVICE: str = "auto"  # "auto", "cuda", or "cpu"
     
     @model_validator(mode="after")
     def parse_cors_origins(self):

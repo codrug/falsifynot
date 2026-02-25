@@ -58,24 +58,6 @@ console.log(result.verdict, result.confidence);`,
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild className="transition-all duration-300 hover:scale-110">
-              <Link href="/">
-                <Home className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <Shield className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">FalsifyNot</h1>
-            </Link>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 animate-fade-in-up">
         <div className="max-w-4xl mx-auto text-center space-y-6">

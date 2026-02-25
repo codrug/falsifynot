@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core import get_logger
 from app.models.schemas import AnalyzeRequest, AnalyzeResponse
-from app.services.pipeline_service import VerificationPipeline
+from app.pipeline.pipeline_service import VerificationPipeline
 
 logger = get_logger(__name__)
 

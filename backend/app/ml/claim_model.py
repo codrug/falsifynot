@@ -18,12 +18,10 @@ class ClaimModel:
         self.model_path = Path(model_path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        logger.info("Loading claim extraction model from %s", self.model_path)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
         self.model.to(self.device)
         self.model.eval()
-        logger.info("Claim extraction model loaded on device: %s", self.device)
 
     def predict(self, sentence: str) -> Tuple[int, float]:
         """Predict claim label and confidence for a sentence.

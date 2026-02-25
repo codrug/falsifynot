@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   FileText,
   ImageIcon,
@@ -14,57 +13,12 @@ import {
   Search,
   CheckCircle2,
   ArrowRight,
-  Upload,
-  LayoutDashboard,
   Github,
-  BookOpen,
-  Code2,
 } from "lucide-react"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 animate-fade-in hover:opacity-80 transition-opacity">
-            <Shield className="h-8 w-8 text-primary animate-pulse" />
-            <h1 className="text-2xl font-bold text-foreground">FalsifyNot</h1>
-          </Link>
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/upload"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
-            >
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Upload</span>
-            </Link>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Link>
-            <Link
-              href="/docs"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
-            >
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Docs</span>
-            </Link>
-            <Link
-              href="/api-access"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
-            >
-              <Code2 className="h-4 w-4" />
-              <span className="hidden sm:inline">API</span>
-            </Link>
-            <ThemeToggle />
-          </nav>
-        </div>
-      </header>
-
+    <div className="flex flex-col">
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 md:py-32 animate-fade-in-up">
         <div className="max-w-4xl mx-auto text-center space-y-8">

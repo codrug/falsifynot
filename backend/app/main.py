@@ -11,7 +11,8 @@ from app.core import settings, setup_logging, get_logger
 from app.api import router
 from app.ml.claim_model import ClaimModel
 from app.services.claim_service import ClaimExtractionService
-from app.services.pipeline_service import VerificationPipeline
+from app.services.retrieval_service import RetrievalService
+from app.pipeline.pipeline_service import VerificationPipeline
 
 
 # Setup logging
@@ -50,10 +51,12 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup_event():
     """Event handler for application startup."""
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"Debug mode: {settings.DEBUG}")
-    logger.info(f"CORS origins: {settings.CORS_ORIGINS}")
-
+    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"   Debug: {settings.DEBUG} | CORS: {len(settings.CORS_ORIGINS)} origins")
+    logger.info("")
+    
+    # ===== LOAD CLAIM EXTRACTOR =====
+    logger.info("📝 Loading Claim Extractor...")
     model_path = Path(settings.CLAIM_MODEL_PATH)
     if not model_path.is_absolute():
         model_path = (Path(__file__).resolve().parents[1] / model_path).resolve()
@@ -70,16 +73,50 @@ async def startup_event():
             f"Claim model artifacts missing in {model_path}. Missing: {missing_files}"
         )
 
-    logger.info("Loading claim model from: %s", model_path)
-
     claim_model = ClaimModel(model_path=model_path)
     app.state.claim_model = claim_model
+    
     claim_service = ClaimExtractionService(
         claim_model=claim_model,
         confidence_threshold=settings.CLAIM_CONFIDENCE_THRESHOLD,
     )
-    app.state.verification_pipeline = VerificationPipeline(claim_service=claim_service)
-    logger.info("Verification pipeline initialized")
+    app.state.claim_service = claim_service
+    logger.info("   ✓ Claim Extractor ready")
+    logger.info("")
+    
+    # ===== LOAD RETRIEVAL SERVICE =====
+    logger.info("🔍 Loading Retrieval Service...")
+    try:
+        retrieval_device = None
+        if settings.RETRIEVAL_DEVICE != "auto":
+            retrieval_device = settings.RETRIEVAL_DEVICE
+        
+        retrieval_service = RetrievalService(
+            embeddings_path=settings.RETRIEVAL_EMBEDDINGS_PATH,
+            corpus_path=settings.RETRIEVAL_CORPUS_PATH,
+            model_name=settings.RETRIEVAL_MODEL_NAME,
+            top_k=settings.RETRIEVAL_TOP_K,
+            device=retrieval_device
+        )
+        app.state.retrieval_service = retrieval_service
+        logger.info("   ✓ Retrieval Service ready")
+    except Exception as e:
+        logger.warning(f"   ⚠ Retrieval Service unavailable: {e}")
+        logger.warning("   Pipeline will run without retrieval")
+        app.state.retrieval_service = None
+    
+    logger.info("")
+    
+    # ===== BUILD UNIFIED PIPELINE =====
+    logger.info("⚙️  Building Verification Pipeline...")
+    app.state.verification_pipeline = VerificationPipeline(
+        claim_service=claim_service,
+        retrieval_service=getattr(app.state, "retrieval_service", None)
+    )
+    logger.info("   ✓ Pipeline ready")
+    logger.info("")
+    logger.info(f"✅ {settings.APP_NAME} ready - http://127.0.0.1:{settings.PORT}")
+    logger.info("")
 
 
 @app.on_event("shutdown")

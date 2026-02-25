@@ -72,6 +72,9 @@ next-env.d.ts
 backend/app/ml/models/
 backend/app/ml/checkpoints/
 backend/app/ml/cache/
+backend/models/claim_extractor/model.safetensors
+backend/models/retrieval/wiki_embeddings.pt
+backend/models/retrieval/wiki_*.csv
 .cache/
 .huggingface/
 

@@ -1,19 +1,14 @@
-"""Services package."""
+"""Services package - core business logic for the verification pipeline.
 
-from .claim_extractor import ClaimExtractor
+Services in use:
+- claim_service: Extract claims from input text
+- retrieval_service: Search for evidence documents to support/refute claims
+"""
+
 from .claim_service import ClaimExtractionService
-from .retrieval import RetrievalEngine
-from .scoring import ScoringEngine
-from .fusion import FusionEngine
-from .multimedia import MultimediaProcessor
-from .pipeline_service import VerificationPipeline
+from .retrieval_service import RetrievalService
 
 __all__ = [
-    "ClaimExtractor",
     "ClaimExtractionService",
-    "RetrievalEngine", 
-    "ScoringEngine", 
-    "FusionEngine",
-    "MultimediaProcessor",
-    "VerificationPipeline",
+    "RetrievalService",
 ]
