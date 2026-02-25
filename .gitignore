@@ -55,3 +55,39 @@ run.txt
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ML model weights and caches
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+backend/app/ml/models/
+backend/app/ml/checkpoints/
+backend/app/ml/cache/
+.cache/
+.huggingface/
+
+# Python package builds
+build/
+dist/
+*.egg-info/
+
+# Data directories
+backend/data/
+backend/datasets/
+backend/venv/
+
+# Large files
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z

@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"  # or "text"
 
     # ML Settings
-    CLAIM_MODEL_PATH: str = "../../claim_extractor_model/claim_extractor_model"
+    CLAIM_MODEL_PATH: str = "app/ml/claim_extractor_model"
     CLAIM_CONFIDENCE_THRESHOLD: float = 0.5
     
     @model_validator(mode="after")
