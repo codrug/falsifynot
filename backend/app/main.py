@@ -51,12 +51,12 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup_event():
     """Event handler for application startup."""
-    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"   Debug: {settings.DEBUG} | CORS: {len(settings.CORS_ORIGINS)} origins")
     logger.info("")
     
     # ===== LOAD CLAIM EXTRACTOR =====
-    logger.info("📝 Loading Claim Extractor...")
+    logger.info("Loading Claim Extractor...")
     model_path = Path(settings.CLAIM_MODEL_PATH)
     if not model_path.is_absolute():
         model_path = (Path(__file__).resolve().parents[1] / model_path).resolve()
@@ -81,11 +81,11 @@ async def startup_event():
         confidence_threshold=settings.CLAIM_CONFIDENCE_THRESHOLD,
     )
     app.state.claim_service = claim_service
-    logger.info("   ✓ Claim Extractor ready")
+    logger.info("   Claim Extractor ready")
     logger.info("")
     
     # ===== LOAD RETRIEVAL SERVICE =====
-    logger.info("🔍 Loading Retrieval Service...")
+    logger.info("Loading Retrieval Service...")
     try:
         retrieval_device = None
         if settings.RETRIEVAL_DEVICE != "auto":
@@ -99,7 +99,7 @@ async def startup_event():
             device=retrieval_device
         )
         app.state.retrieval_service = retrieval_service
-        logger.info("   ✓ Retrieval Service ready")
+        logger.info("   Retrieval Service ready")
     except Exception as e:
         logger.warning(f"   ⚠ Retrieval Service unavailable: {e}")
         logger.warning("   Pipeline will run without retrieval")
@@ -108,14 +108,14 @@ async def startup_event():
     logger.info("")
     
     # ===== BUILD UNIFIED PIPELINE =====
-    logger.info("⚙️  Building Verification Pipeline...")
+    logger.info("Building Verification Pipeline...")
     app.state.verification_pipeline = VerificationPipeline(
         claim_service=claim_service,
         retrieval_service=getattr(app.state, "retrieval_service", None)
     )
-    logger.info("   ✓ Pipeline ready")
+    logger.info("   Pipeline ready")
     logger.info("")
-    logger.info(f"✅ {settings.APP_NAME} ready - http://127.0.0.1:{settings.PORT}")
+    logger.info(f"{settings.APP_NAME} ready - http://127.0.0.1:{settings.PORT}")
     logger.info("")
 
 

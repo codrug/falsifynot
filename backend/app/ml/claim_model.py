@@ -36,6 +36,9 @@ class ClaimModel:
             return_tensors="pt",
             max_length=512,
         )
+        if "token_type_ids" in encoded and getattr(self.model.config, "model_type", "") == "distilbert":
+            # DistilBERT does not accept token_type_ids.
+            encoded.pop("token_type_ids")
         encoded = {key: value.to(self.device) for key, value in encoded.items()}
 
         with torch.no_grad():

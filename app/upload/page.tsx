@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UploadPanel } from "@/components/upload-panel"
 import { Shield, ArrowRight } from "lucide-react"
-import { analyzeText, type StoredClaim, type TextAnalysis } from "@/lib/api"
+import { analyzeText, API_BASE_URL, type StoredClaim, type TextAnalysis } from "@/lib/api"
 
 interface TextItem {
   id: string
@@ -27,10 +27,37 @@ export default function UploadPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  const readTextFromFiles = async (inputFiles: File[]) => {
+    const textFiles = inputFiles.filter(
+      (file) => file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt"),
+    )
+
+    const items: TextItem[] = []
+    for (const file of textFiles) {
+      const content = (await file.text()).trim()
+      if (content) {
+        items.push({ id: crypto.randomUUID(), content })
+      }
+    }
+
+    return {
+      items,
+      skippedCount: inputFiles.length - textFiles.length,
+    }
+  }
+
   const handleAnalyze = async () => {
-    const validTextItems = textItems.map((item) => ({ ...item, content: item.content.trim() })).filter((item) => item.content)
+    const trimmedTextItems = textItems
+      .map((item) => ({ ...item, content: item.content.trim() }))
+      .filter((item) => item.content)
+    const { items: fileTextItems, skippedCount } = await readTextFromFiles(files)
+    const validTextItems = [...trimmedTextItems, ...fileTextItems]
+
     if (validTextItems.length === 0) {
-      setErrorMessage("Add at least one text item to analyze.")
+      const message = skippedCount > 0
+        ? "Only .txt files can be analyzed right now. Add text or upload .txt files."
+        : "Add at least one text item or .txt file to analyze."
+      setErrorMessage(message)
       return
     }
 
@@ -61,6 +88,11 @@ export default function UploadPage() {
       sessionStorage.setItem("falsifynot.claims", JSON.stringify(flattenedClaims))
       router.push("/dashboard")
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
+        setErrorMessage(`Failed to reach the API at ${API_BASE_URL}. Is the backend running?`)
+        return
+      }
+
       const message = error instanceof Error ? error.message : "Failed to analyze content"
       setErrorMessage(message)
     } finally {
