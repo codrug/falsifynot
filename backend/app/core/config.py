@@ -32,11 +32,14 @@ class Settings(BaseSettings):
     CLAIM_CONFIDENCE_THRESHOLD: float = 0.5
     
     # ML Settings - Retrieval
-    RETRIEVAL_EMBEDDINGS_PATH: str = "models/retrieval/wiki_embeddings.pt"
-    RETRIEVAL_CORPUS_PATH: str = "models/retrieval/wiki_retrieval_sample.csv"
-    RETRIEVAL_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    RETRIEVAL_INDEX_PATH: str = "data/wiki_faiss.index"
+    RETRIEVAL_METADATA_PATH: str = "data/wiki_corpus_metadata.csv"
+    RETRIEVAL_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
     RETRIEVAL_TOP_K: int = 5
     RETRIEVAL_DEVICE: str = "auto"  # "auto", "cuda", or "cpu"
+
+    # ML Settings - Verification
+    VERIFIER_MODEL_NAME: str = "MoritzLaurer/deberta-v3-base-mnli-fever-anli"
     
     @model_validator(mode="after")
     def parse_cors_origins(self):

@@ -10,8 +10,9 @@ interface VerdictCardProps {
 
 export function VerdictCard({ verdict, confidence }: VerdictCardProps) {
   const getVerdictConfig = (verdict: string) => {
-    switch (verdict) {
+    switch (verdict.toLowerCase()) {
       case "supported":
+      case "supports":
         return {
           icon: CheckCircle2,
           label: "Supported",
@@ -20,6 +21,7 @@ export function VerdictCard({ verdict, confidence }: VerdictCardProps) {
           border: "border-chart-4/50",
         }
       case "refuted":
+      case "refutes":
         return {
           icon: XCircle,
           label: "Refuted",
@@ -28,9 +30,10 @@ export function VerdictCard({ verdict, confidence }: VerdictCardProps) {
           border: "border-destructive/50",
         }
       case "mixed":
+      case "neutral":
         return {
           icon: AlertCircle,
-          label: "Mixed Evidence",
+          label: "Neutral / Mixed",
           color: "text-chart-5",
           bg: "bg-chart-5/10",
           border: "border-chart-5/50",

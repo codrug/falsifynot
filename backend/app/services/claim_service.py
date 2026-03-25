@@ -4,7 +4,7 @@ from typing import List
 from uuid import uuid4
 
 from app.ml.claim_model import ClaimModel
-from app.ml.inference_utils import split_sentences
+from app.ml.text_loader import split_into_sentences
 from app.models.schemas import ExtractedClaim
 
 
@@ -17,11 +17,15 @@ class ClaimExtractionService:
 
     def extract_claims(self, text: str) -> List[ExtractedClaim]:
         """Run sentence-level claim extraction and confidence filtering."""
-        sentences = split_sentences(text)
-        extracted: List[ExtractedClaim] = []
+        sentences = split_into_sentences(text)
+        if not sentences:
+            return []
 
-        for sentence in sentences:
-            label, confidence = self.claim_model.predict(sentence)
+        # Batch prediction
+        results = self.claim_model.predict_batch(sentences)
+        
+        extracted: List[ExtractedClaim] = []
+        for sentence, (label, confidence) in zip(sentences, results):
             if label == 1 and confidence >= self.confidence_threshold:
                 extracted.append(
                     ExtractedClaim(

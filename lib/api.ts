@@ -1,8 +1,49 @@
+export interface EvidenceResult {
+  text: string
+  score: number
+  source?: string | null
+  matched_terms?: string[]
+  verdict?: string | null
+  confidence?: number | null
+}
+
+export interface ProvenanceNode {
+  id: string
+  type: string
+  text?: string
+  source?: string
+  score?: number
+}
+
+export interface ProvenanceEdge {
+  from: string
+  to: string
+  weight?: number
+}
+
+export interface ProvenanceGraphData {
+  nodes: ProvenanceNode[]
+  edges: ProvenanceEdge[]
+}
+
+export interface TextHighlight {
+  text: string
+  type: string
+}
+
+export interface ExplainabilityData {
+  highlights: TextHighlight[]
+  confidence_details?: Record<string, number>
+}
+
 export interface ExtractedClaim {
   id: string
   text: string
   confidence: number
   verdict?: string | null
+  evidence?: EvidenceResult[]
+  provenance?: ProvenanceGraphData
+  explainability?: ExplainabilityData
 }
 
 export interface AnalyzeResponse {

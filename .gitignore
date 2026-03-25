@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
@@ -10,30 +8,38 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# Testing
 /coverage
 
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
-/build
+# Env
+.env*
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Logs / debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# OS / misc
+.DS_Store
+*.pem
 
-# python
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python caches
 __pycache__/
 *.pyc
 *.pyo
@@ -42,53 +48,47 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# virtualenvs
+# Virtual environments
 .venv/
 /backend/.venv/
-
-# local artifacts
-run.txt
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# IDE/Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# ML model weights and caches
-*.pt
-*.pth
-*.bin
-*.safetensors
-*.onnx
-backend/app/ml/models/
-backend/app/ml/checkpoints/
-backend/app/ml/cache/
-backend/models/claim_extractor/model.safetensors
-backend/models/retrieval/wiki_embeddings.pt
-backend/models/retrieval/wiki_*.csv
-.cache/
-.huggingface/
+backend/venv/
 
 # Python package builds
 build/
 dist/
 *.egg-info/
 
-# Data directories
+# Vercel
+.vercel
+
+# Local/session files
+details.txt
+old_pipe.txt
+status.txt
+status8.txt
+status*.txt
+run.txt
+
+# ML models, data, caches
+backend/models/
 backend/data/
 backend/datasets/
-backend/venv/
+backend/app/ml/models/
+backend/app/ml/checkpoints/
+backend/app/ml/cache/
+.cache/
+.huggingface/
 
-# Large files
+# Large model/index artifacts
+*.index
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.pkl
+
+# Archives
 *.zip
 *.tar.gz
 *.tar

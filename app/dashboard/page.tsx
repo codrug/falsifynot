@@ -1,12 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { ClaimList } from "@/components/claim-list"
 import { AnalysisPanel } from "@/components/analysis-panel"
-import { RightPanel } from "@/components/right-panel"
-import { Shield } from "lucide-react"
 import type { StoredClaim } from "@/lib/api"
 
 export default function DashboardPage() {
@@ -47,15 +43,10 @@ export default function DashboardPage() {
           <ClaimList claims={claims} selectedClaim={selectedClaim} setSelectedClaim={setSelectedClaim} />
         </aside>
 
-        {/* Center Panel - Analysis */}
+        {/* Center Panel - Analysis + Evidence/Explainability Sections */}
         <main className="flex-1 overflow-y-auto">
           <AnalysisPanel claim={currentClaim} claimIndex={selectedClaim} />
         </main>
-
-        {/* Right Panel - Tabs */}
-        <aside className="w-96 border-l border-border bg-card/30 overflow-y-auto">
-          <RightPanel claimIndex={selectedClaim} claimData={{ hasMedia: false, hasVideo: false, hasAudio: false, hasOCR: false }} />
-        </aside>
       </div>
     </div>
   )

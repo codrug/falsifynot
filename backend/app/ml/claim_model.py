@@ -18,41 +18,50 @@ class ClaimModel:
         self.model_path = Path(model_path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
+        if not self.model_path.exists():
+            raise FileNotFoundError(f"Model path does not exist: {self.model_path}")
+
+        logger.info(f"Loading claim model from {self.model_path}...")
+        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
+        self.model = AutoModelForSequenceClassification.from_pretrained(str(self.model_path))
         self.model.to(self.device)
         self.model.eval()
 
-    def predict(self, sentence: str) -> Tuple[int, float]:
-        """Predict claim label and confidence for a sentence.
-
-        Returns:
-            tuple[int, float]: (label, confidence)
+    def predict_batch(self, sentences: list) -> list:
         """
-        encoded = self.tokenizer(
-            sentence,
-            truncation=True,
-            padding=True,
-            return_tensors="pt",
-            max_length=512,
-        )
-        if "token_type_ids" in encoded and getattr(self.model.config, "model_type", "") == "distilbert":
-            # DistilBERT does not accept token_type_ids.
-            encoded.pop("token_type_ids")
-        encoded = {key: value.to(self.device) for key, value in encoded.items()}
+        Predict multiple sentences in a single batch.
+        
+        Args:
+            sentences: List of strings
+            
+        Returns:
+            list: List of (label, confidence) tuples
+        """
+        if not sentences:
+            return []
+            
+        try:
+            inputs = self.tokenizer(
+                sentences,
+                return_tensors="pt",
+                truncation=True,
+                padding=True,
+                max_length=256
+            ).to(self.device)
 
-        with torch.no_grad():
-            outputs = self.model(**encoded)
-            logits = outputs.logits.squeeze(0)
+            with torch.no_grad():
+                outputs = self.model(**inputs)
 
-            if logits.ndim == 0 or logits.shape[0] == 1:
-                probability = torch.sigmoid(logits).item()
-                label = int(probability >= 0.5)
-                confidence = float(probability if label == 1 else 1.0 - probability)
-            else:
-                probabilities = torch.softmax(logits, dim=-1)
-                confidence_tensor, label_tensor = torch.max(probabilities, dim=-1)
-                label = int(label_tensor.item())
-                confidence = float(confidence_tensor.item())
+            probs = torch.softmax(outputs.logits, dim=1)
+            preds = torch.argmax(probs, dim=1).cpu().numpy()
+            confs = probs.max(dim=1).values.cpu().numpy()
 
-        return label, confidence
+            return [(int(p), float(c)) for p, c in zip(preds, confs)]
+        except Exception as e:
+            logger.error(f"Error during batch claim prediction: {e}")
+            return [(0, 0.0)] * len(sentences)
+
+    def predict(self, sentence: str) -> Tuple[int, float]:
+        """Predict if a sentence is check-worthy."""
+        results = self.predict_batch([sentence])
+        return results[0]

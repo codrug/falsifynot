@@ -1,7 +1,7 @@
 """Main FastAPI application entry point."""
 
 from pathlib import Path
-
+import torch
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,6 +12,7 @@ from app.api import router
 from app.ml.claim_model import ClaimModel
 from app.services.claim_service import ClaimExtractionService
 from app.services.retrieval_service import RetrievalService
+from app.services.verification_service import VerificationService
 from app.pipeline.pipeline_service import VerificationPipeline
 
 
@@ -54,66 +55,19 @@ async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"   Debug: {settings.DEBUG} | CORS: {len(settings.CORS_ORIGINS)} origins")
     logger.info("")
-    
-    # ===== LOAD CLAIM EXTRACTOR =====
-    logger.info("Loading Claim Extractor...")
-    model_path = Path(settings.CLAIM_MODEL_PATH)
-    if not model_path.is_absolute():
-        model_path = (Path(__file__).resolve().parents[1] / model_path).resolve()
 
-    required_files = [
-        "config.json",
-        "model.safetensors",
-        "tokenizer.json",
-        "tokenizer_config.json",
-    ]
-    missing_files = [name for name in required_files if not (model_path / name).exists()]
-    if missing_files:
-        raise RuntimeError(
-            f"Claim model artifacts missing in {model_path}. Missing: {missing_files}"
-        )
+    from app.ml.claim_inference import load_model
+    from app.ml.retriever import load_retriever
+    from app.ml.verifier import load_verifier
+    from app.ml.text_loader import ensure_nltk_resources
 
-    claim_model = ClaimModel(model_path=model_path)
-    app.state.claim_model = claim_model
-    
-    claim_service = ClaimExtractionService(
-        claim_model=claim_model,
-        confidence_threshold=settings.CLAIM_CONFIDENCE_THRESHOLD,
-    )
-    app.state.claim_service = claim_service
-    logger.info("   Claim Extractor ready")
-    logger.info("")
-    
-    # ===== LOAD RETRIEVAL SERVICE =====
-    logger.info("Loading Retrieval Service...")
-    try:
-        retrieval_device = None
-        if settings.RETRIEVAL_DEVICE != "auto":
-            retrieval_device = settings.RETRIEVAL_DEVICE
-        
-        retrieval_service = RetrievalService(
-            embeddings_path=settings.RETRIEVAL_EMBEDDINGS_PATH,
-            corpus_path=settings.RETRIEVAL_CORPUS_PATH,
-            model_name=settings.RETRIEVAL_MODEL_NAME,
-            top_k=settings.RETRIEVAL_TOP_K,
-            device=retrieval_device
-        )
-        app.state.retrieval_service = retrieval_service
-        logger.info("   Retrieval Service ready")
-    except Exception as e:
-        logger.warning(f"   ⚠ Retrieval Service unavailable: {e}")
-        logger.warning("   Pipeline will run without retrieval")
-        app.state.retrieval_service = None
-    
-    logger.info("")
-    
-    # ===== BUILD UNIFIED PIPELINE =====
-    logger.info("Building Verification Pipeline...")
-    app.state.verification_pipeline = VerificationPipeline(
-        claim_service=claim_service,
-        retrieval_service=getattr(app.state, "retrieval_service", None)
-    )
-    logger.info("   Pipeline ready")
+    logger.info("Ensuring all pipeline models and resources are ready...")
+    ensure_nltk_resources()
+    load_model()
+    load_retriever()
+    load_verifier()
+    logger.info("Pipeline models ready!")
+
     logger.info("")
     logger.info(f"{settings.APP_NAME} ready - http://127.0.0.1:{settings.PORT}")
     logger.info("")

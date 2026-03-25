@@ -64,16 +64,16 @@ export default function UploadPage() {
     setIsAnalyzing(true)
     setErrorMessage(null)
     try {
-      const analyses: TextAnalysis[] = []
-
-      for (const item of validTextItems) {
-        const result = await analyzeText(item.content)
-        analyses.push({
-          textId: item.id,
-          inputText: item.content,
-          claims: result.claims,
+      const analyses: TextAnalysis[] = await Promise.all(
+        validTextItems.map(async (item) => {
+          const result = await analyzeText(item.content)
+          return {
+            textId: item.id,
+            inputText: item.content,
+            claims: result.claims,
+          }
         })
-      }
+      )
 
       const flattenedClaims: StoredClaim[] = analyses.flatMap((analysis) =>
         analysis.claims.map((claim) => ({

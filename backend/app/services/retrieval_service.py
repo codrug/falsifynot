@@ -1,138 +1,133 @@
-"""Retrieval service using SentenceTransformer embeddings."""
-
-import torch
+import faiss
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from sentence_transformers import SentenceTransformer
-from torch.nn.functional import cosine_similarity
 from app.core import get_logger
 
 logger = get_logger(__name__)
 
 
 class RetrievalService:
-    """Semantic search over embedded corpus using SentenceTransformer."""
+    """Semantic search over FAISS index with SentenceTransformer embeddings."""
     
     def __init__(
         self,
-        embeddings_path: str = "models/retrieval/wiki_embeddings.pt",
-        corpus_path: str = "models/retrieval/wiki_retrieval_sample.csv",
-        model_name: str = "all-MiniLM-L6-v2",
+        index_path: str = "data/wiki_faiss.index",
+        metadata_path: str = "data/wiki_corpus_metadata.csv",
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         top_k: int = 5,
         device: Optional[str] = None
     ):
-        """Initialize retrieval service with precomputed embeddings and corpus.
+        """Initialize retrieval service with FAISS index and metadata.
         
         Args:
-            embeddings_path: Path to precomputed corpus embeddings (torch tensor).
-            corpus_path: Path to CSV corpus with 'Text' column.
+            index_path: Path to FAISS index file.
+            metadata_path: Path to CSV metadata file.
             model_name: SentenceTransformer model name for query encoding.
             top_k: Number of top results to return per query.
             device: Device to use ('cuda', 'cpu'). Auto-detects if None.
         """
         self.top_k = top_k
-        self.embeddings_path = embeddings_path
-        self.corpus_path = corpus_path
+        self.index_path = index_path
+        self.metadata_path = metadata_path
         
         # Set device
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Load corpus
-        self._load_corpus()
-        
-        # Load embeddings
-        self._load_embeddings()
-        
-        # Load embedder model
-        self._load_model(model_name)
+        # Load retriever components
+        self._load_retriever(model_name)
     
-    def _load_corpus(self):
-        """Load corpus from CSV file."""
-        corpus_path = Path(self.corpus_path)
-        
-        if not corpus_path.exists():
-            self.corpus = []
-            return
-        
+    def _load_retriever(self, model_name: str):
+        """Load FAISS index, metadata, and embedder model."""
         try:
-            corpus_df = pd.read_csv(corpus_path)
-            self.corpus = corpus_df["Text"].tolist() if "Text" in corpus_df.columns else []
+            index_path = Path(self.index_path)
+            if not index_path.is_absolute():
+                index_path = (Path(__file__).resolve().parents[2] / index_path).resolve()
+            
+            if not index_path.exists():
+                logger.error(f"Missing index file: {index_path}")
+                self.index = None
+            else:
+                logger.info(f"Loading FAISS index from {index_path}...")
+                self.index = faiss.read_index(str(index_path))
+
+            metadata_path = Path(self.metadata_path)
+            if not metadata_path.is_absolute():
+                metadata_path = (Path(__file__).resolve().parents[2] / metadata_path).resolve()
+
+            if not metadata_path.exists():
+                logger.error(f"Missing metadata file: {metadata_path}")
+                self.metadata = None
+            else:
+                logger.info(f"Loading metadata from {metadata_path}...")
+                self.metadata = pd.read_csv(metadata_path)
+
+            logger.info(f"Loading embedding model {model_name}...")
+            # We use local_files_only=True if we want to ensure it's offline, but 
+            # for now let's just load it.
+            self.model = SentenceTransformer(model_name, device=self.device)
+            
+            self.ready = self.index is not None and self.metadata is not None
+            if self.ready:
+                logger.info("Retrieval Service ready.")
+            else:
+                logger.warning("Retrieval Service not fully initialized.")
+                
         except Exception as e:
-            logger.error(f"Failed to load corpus: {e}")
-            self.corpus = []
-    
-    def _load_embeddings(self):
-        """Load precomputed embeddings from PyTorch tensor."""
-        embeddings_path = Path(self.embeddings_path)
-        
-        if not embeddings_path.exists():
-            self.corpus_embeddings = None
-            return
-        
-        try:
-            self.corpus_embeddings = torch.load(
-                embeddings_path,
-                map_location=self.device
-            )
-        except Exception as e:
-            logger.error(f"Failed to load embeddings: {e}")
-            self.corpus_embeddings = None
-    
-    def _load_model(self, model_name: str):
-        """Load SentenceTransformer model for query encoding."""
-        try:
-            self.embedder = SentenceTransformer(model_name, device=self.device)
-        except Exception as e:
-            logger.error(f"Failed to load SentenceTransformer: {e}")
-            self.embedder = None
-    
+            logger.error(f"Failed to initialize retriever: {e}")
+            self.index = None
+            self.metadata = None
+            self.ready = False
+
     def retrieve_evidence(
         self,
-        claim: str,
+        query: str,
         top_k: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Retrieve top-k evidence documents for a claim.
         
         Args:
-            claim: The claim/query text.
+            query: The claim/query text.
             top_k: Override default top_k. If None, uses instance top_k.
             
         Returns:
             List of dicts with 'text' and 'score' keys, sorted by score descending.
         """
-        if not claim or not self.embedder or self.corpus_embeddings is None or not self.corpus:
+        if not self.ready or not query:
             return []
         
-        k = top_k or self.top_k
-        k = min(k, len(self.corpus))
-        
         try:
+            k = top_k or self.top_k
+            
             # Encode query
-            claim_embedding = self.embedder.encode(
-                claim,
-                convert_to_tensor=True,
-                device=self.device
+            query_embedding = self.model.encode(
+                [query],
+                convert_to_numpy=True,
+                normalize_embeddings=True
             )
-            
-            # Compute cosine similarity
-            similarities = cosine_similarity(
-                claim_embedding.unsqueeze(0),
-                self.corpus_embeddings
-            )
-            
-            # Get top-k results
-            top_results = torch.topk(similarities.squeeze(), k=k)
-            
+            query_embedding = np.asarray(query_embedding, dtype=np.float32)
+
+            search_k = min(k, self.index.ntotal)
+            scores, indices = self.index.search(query_embedding, search_k)
+
             results = []
-            for score, idx in zip(top_results.values, top_results.indices):
-                idx_int = int(idx.item())
-                score_float = float(score.item())
+            for score, idx in zip(scores[0], indices[0]):
+                if idx < 0 or idx >= len(self.metadata):
+                    continue
+
+                row = self.metadata.iloc[idx]
+                page_title = row["page"] if "page" in row else ""
+                # Combine page title + sentence
+                combined_text = f"[{page_title}] {row['text']}" if page_title else row["text"]
+                
                 results.append({
-                    "text": self.corpus[idx_int],
-                    "score": score_float
+                    "score": float(score),
+                    "text": combined_text,
+                    "page": page_title
                 })
-            
+
             return results
         
         except Exception as e:
