@@ -16,6 +16,12 @@ export function ExplainabilityTabs({ claim, hasOCR, hasVideo }: ExplainabilityTa
   const highlights = explainability?.highlights || []
   const confidenceDetails = explainability?.confidence_details || {}
 
+  const confidenceLabels: Record<string, string> = {
+    model_confidence: "Model Confidence",
+    best_evidence_score: "Best Evidence Score",
+    avg_retrieval_score: "Avg Retrieval Score",
+  }
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="highlights" className="w-full">
@@ -83,7 +89,7 @@ export function ExplainabilityTabs({ claim, hasOCR, hasVideo }: ExplainabilityTa
               {Object.entries(confidenceDetails).map(([key, value]) => (
                 <div key={key} className="space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                    <span className="text-muted-foreground capitalize">{confidenceLabels[key] || key.replace(/_/g, ' ')}</span>
                     <span className="font-medium">{(value * 100).toFixed(1)}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">

@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProvenanceGraph } from "./provenance-graph"
 import { ExplainabilityTabs } from "./explainability-tabs"
 import { MediaViewer } from "./media-viewer"
-import { FileText, GitFork, Lightbulb, ImageIcon, ExternalLink, Search } from "lucide-react"
+import { FileText, GitFork, Lightbulb, ImageIcon, ExternalLink, Search, Globe, Video } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { StoredClaim } from "@/lib/api"
@@ -16,15 +16,20 @@ interface RightPanelProps {
 
 export function RightPanel({ claimIndex, claim }: RightPanelProps) {
   const evidence = claim?.evidence || []
-  const hasMedia = false // Placeholder for future media support
+  const hasMedia = !!claim?.visual_context?.ocr_text
+  const ext = claim?.external_evidence
 
   return (
     <div className="p-8">
       <Tabs defaultValue="evidence" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
+        <TabsList className="grid w-full grid-cols-5 mb-8">
           <TabsTrigger value="evidence" className="gap-2 transition-all duration-300">
             <FileText className="h-4 w-4" />
             <span className="hidden lg:inline">Evidence</span>
+          </TabsTrigger>
+          <TabsTrigger value="external" className="gap-2 transition-all duration-300">
+            <Globe className="h-4 w-4" />
+            <span className="hidden lg:inline">Links</span>
           </TabsTrigger>
           <TabsTrigger value="provenance" className="gap-2 transition-all duration-300">
             <GitFork className="h-4 w-4" />
@@ -65,9 +70,19 @@ export function RightPanel({ claimIndex, claim }: RightPanelProps) {
                       <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-primary/30">
                         Score: {item.score.toFixed(3)}
                       </Badge>
+                      {typeof item.quality_score === "number" ? (
+                        <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-chart-4/40 text-chart-4">
+                          Quality: {item.quality_score.toFixed(3)}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
-                  <p className="text-sm text-card-foreground leading-relaxed italic">"{item.text}"</p>
+                  <p className="text-sm text-card-foreground leading-relaxed italic">&quot;{item.text}&quot;</p>
+                  {item.highlight_text ? (
+                    <div className="text-xs text-chart-4 font-medium bg-chart-4/10 rounded px-2 py-1 inline-block">
+                      Highlight: {item.highlight_text}
+                    </div>
+                  ) : null}
                   {item.matched_terms && item.matched_terms.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {item.matched_terms.slice(0, 8).map((term) => (
@@ -88,6 +103,66 @@ export function RightPanel({ claimIndex, claim }: RightPanelProps) {
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        {/* External Evidence Tab */}
+        <TabsContent value="external" className="mt-2 animate-fade-in">
+          {ext && (ext.web_sources.length > 0 || ext.video_sources.length > 0) ? (
+            <div className="space-y-6">
+              {ext.web_sources.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Globe className="h-3.5 w-3.5" />
+                    Web Sources
+                  </h4>
+                  <div className="space-y-2">
+                    {ext.web_sources.map((ws, idx) => (
+                      <a
+                        key={idx}
+                        href={ws.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-300 hover:shadow-sm group"
+                      >
+                        <ExternalLink className="h-4 w-4 text-chart-5 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm text-card-foreground group-hover:text-primary transition-colors">{ws.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {ext.video_sources.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Video className="h-3.5 w-3.5" />
+                    Video Sources
+                  </h4>
+                  <div className="space-y-2">
+                    {ext.video_sources.map((vs, idx) => (
+                      <a
+                        key={idx}
+                        href={vs.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-300 hover:shadow-sm group"
+                      >
+                        <Video className="h-4 w-4 text-chart-3 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm text-card-foreground group-hover:text-primary transition-colors">{vs.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Card className="p-10 text-center space-y-4 animate-fade-in">
+              <Globe className="h-14 w-14 mx-auto text-muted-foreground/50" />
+              <h4 className="font-semibold text-foreground">No External Links</h4>
+              <p className="text-sm text-muted-foreground">
+                No external web or video sources are available for this claim.
+              </p>
+            </Card>
           )}
         </TabsContent>
 

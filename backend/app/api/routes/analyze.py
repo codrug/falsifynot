@@ -1,16 +1,24 @@
-"""Analyze API routes."""
+"""Analyze API routes — supports text-only and multimodal (text + image) analysis."""
 
 from datetime import datetime
 import re
 from uuid import uuid4
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException, status
 
 from app.core import get_logger, settings
-from app.models.schemas import AnalyzeRequest, AnalyzeResponse, ExtractedClaim, EvidenceResult
+from app.models.schemas import (
+    AnalyzeResponse, ExtractedClaim, EvidenceResult,
+    VisualContext, MultimodalContribution, ExternalEvidence,
+    WebSource, VideoSource,
+)
 
 from app.ml.pipeline import extract_checkworthy_claims, retrieve_evidence
 from app.ml.verifier import verify_claim
+from app.ml.ocr_service import extract_text_from_image
+from app.ml.clip_service import compute_image_text_similarity
+from app.ml.link_service import generate_external_evidence
 
 logger = get_logger(__name__)
 
@@ -34,6 +42,42 @@ BAD_EVIDENCE_KEYWORDS = {
     "may refer to",
     "genus",
 }
+
+OPINION_MARKERS = (
+    "i think",
+    "i believe",
+    "in my opinion",
+    "we must",
+    "we should",
+    "i feel",
+    "probably",
+    "maybe",
+)
+
+CAUSAL_MARKERS = (
+    "caused",
+    "causes",
+    "cause",
+    "leads to",
+    "led to",
+    "results in",
+    "resulted in",
+    "because",
+    "due to",
+    "driven by",
+    "impact",
+    "affect",
+)
+
+ASSERTION_MARKERS = (
+    " is ",
+    " are ",
+    " was ",
+    " were ",
+    " has ",
+    " have ",
+    " had ",
+)
 
 
 def simplify_claim(claim: str) -> str:
@@ -78,6 +122,36 @@ def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9']+", text.lower()))
 
 
+def has_numeric_signal(text: str) -> bool:
+    return bool(re.search(r"\b\d+(?:\.\d+)?(?:%|\s?(?:million|billion|trillion|k|km|kg|cm|mm|m|years?|months?|days?|c|f))?\b", text.lower()))
+
+
+def has_factual_structure(text: str) -> bool:
+    lower_text = f" {text.lower().strip()} "
+    has_assertion = any(marker in lower_text for marker in ASSERTION_MARKERS)
+    has_entity_like_token = bool(re.search(r"\b[A-Z][a-z]{2,}\b", text))
+    has_year = bool(re.search(r"\b(19|20)\d{2}\b", text))
+    return has_assertion and (has_entity_like_token or has_year)
+
+
+def classify_claim_type(claim: str) -> str:
+    lower_claim = claim.lower()
+
+    if has_numeric_signal(claim):
+        return "Statistical"
+    if any(marker in lower_claim for marker in CAUSAL_MARKERS):
+        return "Causal"
+    if any(marker in lower_claim for marker in OPINION_MARKERS):
+        return "Opinion"
+    if has_factual_structure(claim):
+        return "Causal"
+    return "Opinion"
+
+
+def is_claim_analyst_worthy(claim: str) -> bool:
+    return has_numeric_signal(claim) or has_factual_structure(claim)
+
+
 def highlight_overlap(claim: str, evidence: str) -> list[str]:
     claim_words = _tokenize(claim) - STOPWORDS
     evidence_words = _tokenize(evidence) - STOPWORDS
@@ -85,48 +159,80 @@ def highlight_overlap(claim: str, evidence: str) -> list[str]:
     return sorted(overlap)
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
-    """Analyze incoming text and return extracted claims using the new ML scripts."""
-    logger.info("Received dynamic analyze request")
+def extract_evidence_highlight(evidence_text: str, matched_terms: list[str]) -> str:
+    numeric_match = re.search(
+        r"\b\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|k|km|kg|cm|mm|m|years?|months?|days?)\b",
+        evidence_text,
+        flags=re.IGNORECASE,
+    )
+    if numeric_match:
+        return numeric_match.group(0)
+
+    if matched_terms:
+        return matched_terms[0]
+
+    words = evidence_text.strip().split()
+    return " ".join(words[:6]) if words else ""
+
+
+def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None):
+    """Run the core claim extraction + evidence + verification pipeline.
     
-    # 1. Extract claims
-    raw_claims = extract_checkworthy_claims(payload.text, threshold=settings.CLAIM_CONFIDENCE_THRESHOLD)
+    Returns list of ExtractedClaim dicts (not yet Pydantic objects).
+    """
+    raw_claims = extract_checkworthy_claims(text, threshold=settings.CLAIM_CONFIDENCE_THRESHOLD)
     
-    claims_with_evidence = []
-        
+    claims_data = []
+    
     for rc in raw_claims:
         claim_text = rc["sentence"]
         confidence = rc["confidence"]
+        claim_type = classify_claim_type(claim_text)
+
+        if not is_claim_analyst_worthy(claim_text):
+            logger.info("Discarding low-fact claim: %s", claim_text[:120])
+            continue
         
-        # 2. Retrieve Evidence
+        # Retrieve Evidence
         query = build_retrieval_query(claim_text)
         evidence_list = retrieve_evidence(query, top_k=5)
         evidence_list = filter_evidence(evidence_list)
         
-        # 3. Verify + lightweight XAI features
+        # Verify + lightweight XAI features
         evidence_results = []
         best_verdict = "NEUTRAL"
         best_verdict_conf = 0.0
+        best_evidence_score = 0.0
         overlap_vocab = set()
         retrieval_scores = []
         has_supporting = False
         has_refuting = False
+        evidence_sources = []
         
         for ev in evidence_list:
             v_res = verify_claim(claim_text, ev["text"])
             normalized_verdict = normalize_verdict_label(v_res["verdict"])
             matched_terms = highlight_overlap(claim_text, ev["text"])
+            retrieval_score = float(ev.get("score") or 0.0)
+            nli_confidence = float(v_res.get("confidence") or 0.0)
+            quality_score = max(0.0, min(1.0, retrieval_score)) * max(0.0, min(1.0, nli_confidence))
+            highlight_text = extract_evidence_highlight(ev["text"], matched_terms)
             overlap_vocab.update(matched_terms)
-            retrieval_scores.append(ev["score"])
+            retrieval_scores.append(retrieval_score)
+            
+            page_source = ev.get("page") or "Unknown"
+            evidence_sources.append(page_source)
+            
             evidence_results.append(
                 EvidenceResult(
                     text=ev["text"],
-                    score=ev["score"],
-                    source=ev.get("page") or "Unknown",
+                    score=retrieval_score,
+                    source=page_source,
                     matched_terms=matched_terms,
                     verdict=normalized_verdict,
-                    confidence=v_res["confidence"]
+                    confidence=nli_confidence,
+                    quality_score=quality_score,
+                    highlight_text=highlight_text,
                 )
             )
 
@@ -135,15 +241,22 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             elif normalized_verdict == "REFUTES":
                 has_refuting = True
 
-            if v_res["confidence"] > best_verdict_conf:
-                best_verdict_conf = v_res["confidence"]
+            if nli_confidence > best_verdict_conf:
+                best_verdict_conf = nli_confidence
+            if quality_score > best_evidence_score:
+                best_evidence_score = quality_score
+
+        evidence_results.sort(
+            key=lambda item: float(item.quality_score or 0.0),
+            reverse=True,
+        )
 
         if has_supporting:
             best_verdict = "SUPPORTS"
         elif has_refuting:
             best_verdict = "REFUTES"
                 
-        # 4. Build provenance graph linking claim to each evidence node.
+        # Build provenance graph
         provenance_nodes = [
             {"id": "claim", "type": "claim", "text": claim_text}
         ]
@@ -174,25 +287,141 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 
         avg_retrieval = sum(retrieval_scores) / len(retrieval_scores) if retrieval_scores else 0.0
 
+        # Generate external evidence links
+        ext_evidence_data = generate_external_evidence(claim_text, evidence_sources)
+        external_evidence = ExternalEvidence(
+            web_sources=[WebSource(**ws) for ws in ext_evidence_data["web_sources"]],
+            video_sources=[VideoSource(**vs) for vs in ext_evidence_data["video_sources"]],
+        )
+
+        # Compute visual context if image is provided
+        visual_context = None
+        if image_bytes:
+            clip_score = compute_image_text_similarity(image_bytes, claim_text)
+            ocr_text = extract_text_from_image(image_bytes)
+            visual_context = VisualContext(
+                ocr_text=ocr_text,
+                image_text_similarity=clip_score,
+                used_in_verification=bool(ocr_text),
+            )
+
+        claims_data.append({
+            "claim_text": claim_text,
+            "confidence": confidence,
+            "claim_type": claim_type,
+            "verdict": best_verdict,
+            "evidence_results": evidence_results,
+            "provenance_nodes": provenance_nodes,
+            "provenance_edges": provenance_edges,
+            "highlights": highlights,
+            "avg_retrieval": avg_retrieval,
+            "best_evidence_score": best_evidence_score,
+            "external_evidence": external_evidence,
+            "visual_context": visual_context,
+        })
+    
+    return claims_data
+
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze(
+    text: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+) -> AnalyzeResponse:
+    """Analyze incoming text (and optional image) for fake news verification.
+    
+    Accepts multipart/form-data with:
+    - text (required): Raw input text to analyze
+    - image (optional): Image file (.jpg, .png) for multimodal analysis
+    """
+    logger.info("Received analyze request (multimodal=%s)", image is not None)
+    
+    # Read image bytes if provided
+    image_bytes: Optional[bytes] = None
+    if image and image.filename:
+        try:
+            image_bytes = await image.read()
+            logger.info(f"Received image: {image.filename} ({len(image_bytes)} bytes)")
+        except Exception as e:
+            logger.error(f"Failed to read image: {e}")
+    
+    # If image is provided and text is minimal, try to extract text from image via OCR
+    ocr_text = ""
+    if image_bytes:
+        ocr_text = extract_text_from_image(image_bytes)
+        logger.info(f"OCR extracted text: {ocr_text[:200] if ocr_text else '(none)'}")
+    
+    # Merge OCR text with input text
+    analysis_text = text.strip()
+    if ocr_text:
+        analysis_text = f"{analysis_text} {ocr_text}".strip()
+    
+    if not analysis_text:
+        return AnalyzeResponse(claims=[])
+    
+    # Run text-only pipeline first
+    text_only_data = _run_pipeline_for_text(text.strip(), image_bytes=None)
+    
+    # If we have image context, run the augmented pipeline too
+    if ocr_text and analysis_text != text.strip():
+        augmented_data = _run_pipeline_for_text(analysis_text, image_bytes=image_bytes)
+    else:
+        augmented_data = None
+    
+    # Build final claims
+    claims_with_evidence = []
+    
+    # Use augmented data if available, otherwise text-only
+    primary_data = augmented_data if augmented_data else text_only_data
+    
+    for i, cd in enumerate(primary_data):
+        # Compute multimodal contribution if both pipelines ran
+        multimodal_contribution = None
+        if augmented_data and i < len(text_only_data):
+            text_verdict = text_only_data[i]["verdict"]
+            image_verdict = cd["verdict"]
+            
+            if image_verdict != text_verdict:
+                impact = "positive" if image_verdict == "SUPPORTS" else "negative"
+            else:
+                impact = "none"
+            
+            multimodal_contribution = MultimodalContribution(
+                text_only_verdict=text_verdict,
+                with_image_verdict=image_verdict,
+                image_impact=impact,
+            )
+        elif image_bytes:
+            # Image provided but no different claims found — still show contribution
+            multimodal_contribution = MultimodalContribution(
+                text_only_verdict=cd["verdict"],
+                with_image_verdict=cd["verdict"],
+                image_impact="none",
+            )
+
         claims_with_evidence.append(
             ExtractedClaim(
                 id=str(uuid4()),
-                text=claim_text,
-                confidence=confidence,
-                verdict=best_verdict,
-                evidence=evidence_results,
+                text=cd["claim_text"],
+                confidence=cd["confidence"],
+                claim_type=cd["claim_type"],
+                verdict=cd["verdict"],
+                evidence=cd["evidence_results"],
                 provenance={
-                    "nodes": provenance_nodes,
-                    "edges": provenance_edges,
+                    "nodes": cd["provenance_nodes"],
+                    "edges": cd["provenance_edges"],
                 },
                 explainability={
-                    "highlights": highlights,
+                    "highlights": cd["highlights"],
                     "confidence_details": {
-                        "model_score": confidence,
-                        "best_nli_confidence": best_verdict_conf,
-                        "avg_retrieval_score": avg_retrieval,
+                        "model_confidence": cd["confidence"],
+                        "best_evidence_score": cd["best_evidence_score"],
+                        "avg_retrieval_score": cd["avg_retrieval"],
                     }
-                }
+                },
+                visual_context=cd.get("visual_context"),
+                multimodal_contribution=multimodal_contribution,
+                external_evidence=cd["external_evidence"],
             )
         )
         

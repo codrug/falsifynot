@@ -38,6 +38,7 @@ export function ClaimList({ claims, selectedClaim, setSelectedClaim }: ClaimList
             <Badge variant="outline" className="border">
               {(claim.confidence * 100).toFixed(1)}%
             </Badge>
+            {claim.claim_type ? <Badge variant="outline">{claim.claim_type}</Badge> : null}
           </div>
         </Card>
       ))}

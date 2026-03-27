@@ -12,6 +12,7 @@ export function ProvenanceGraph({ claim }: ProvenanceGraphProps) {
   const provenance = claim?.provenance
   const nodes = provenance?.nodes || []
   const edges = provenance?.edges || []
+  const hasGraph = nodes.length > 0
 
   const nodeMap = new Map(nodes.map((node) => [node.id, node]))
   const claimNode = nodeMap.get("claim")
@@ -19,23 +20,27 @@ export function ProvenanceGraph({ claim }: ProvenanceGraphProps) {
   
   return (
     <Card className="p-10 min-h-96 flex flex-col items-center justify-center space-y-6 bg-muted/30 transition-all duration-300 hover:shadow-lg animate-fade-in relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 right-0 p-4 opacity-5">
-        <GitFork className="h-40 w-40" />
-      </div>
+      {!hasGraph ? (
+        <>
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 p-4 opacity-5">
+            <GitFork className="h-40 w-40" />
+          </div>
 
-      <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center animate-pulse z-10">
-        <GitFork className="h-10 w-10 text-primary" />
-      </div>
+          <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center animate-pulse z-10">
+            <GitFork className="h-10 w-10 text-primary" />
+          </div>
 
-      <div className="text-center space-y-3 z-10">
-        <h4 className="font-semibold text-lg text-card-foreground">Provenance & Chain of Custody</h4>
-        <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-          Tracing the origin and transformation steps for this specific claim.
-        </p>
-      </div>
+          <div className="text-center space-y-3 z-10">
+            <h4 className="font-semibold text-lg text-card-foreground">Provenance & Chain of Custody</h4>
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+              Tracing the origin and transformation steps for this specific claim.
+            </p>
+          </div>
+        </>
+      ) : null}
 
-      {nodes.length > 0 ? (
+      {hasGraph ? (
         <div className="w-full space-y-4 max-w-md z-10">
           {claimNode ? (
             <div className="flex items-center gap-4 relative">

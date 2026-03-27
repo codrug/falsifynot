@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UploadPanel } from "@/components/upload-panel"
 import { Shield, ArrowRight } from "lucide-react"
-import { analyzeText, API_BASE_URL, type StoredClaim, type TextAnalysis } from "@/lib/api"
+import { analyzeContent, API_BASE_URL, type StoredClaim, type TextAnalysis } from "@/lib/api"
 
 interface TextItem {
   id: string
@@ -24,6 +24,7 @@ export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([])
   const [textItems, setTextItems] = useState<TextItem[]>([])
   const [urlItems, setUrlItems] = useState<UrlItem[]>([])
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -53,10 +54,11 @@ export default function UploadPage() {
     const { items: fileTextItems, skippedCount } = await readTextFromFiles(files)
     const validTextItems = [...trimmedTextItems, ...fileTextItems]
 
-    if (validTextItems.length === 0) {
+    // Allow image-only analysis (OCR will extract text)
+    if (validTextItems.length === 0 && !imageFile) {
       const message = skippedCount > 0
         ? "Only .txt files can be analyzed right now. Add text or upload .txt files."
-        : "Add at least one text item or .txt file to analyze."
+        : "Add at least one text item, .txt file, or an image to analyze."
       setErrorMessage(message)
       return
     }
@@ -64,9 +66,14 @@ export default function UploadPage() {
     setIsAnalyzing(true)
     setErrorMessage(null)
     try {
+      // If no text items but image provided, use a placeholder
+      const textsToAnalyze = validTextItems.length > 0
+        ? validTextItems
+        : [{ id: crypto.randomUUID(), content: "(image analysis)" }]
+
       const analyses: TextAnalysis[] = await Promise.all(
-        validTextItems.map(async (item) => {
-          const result = await analyzeText(item.content)
+        textsToAnalyze.map(async (item) => {
+          const result = await analyzeContent(item.content, imageFile)
           return {
             textId: item.id,
             inputText: item.content,
@@ -83,7 +90,7 @@ export default function UploadPage() {
         })),
       )
 
-      sessionStorage.setItem("falsifynot.inputTexts", JSON.stringify(validTextItems))
+      sessionStorage.setItem("falsifynot.inputTexts", JSON.stringify(textsToAnalyze))
       sessionStorage.setItem("falsifynot.analyses", JSON.stringify(analyses))
       sessionStorage.setItem("falsifynot.claims", JSON.stringify(flattenedClaims))
       router.push("/dashboard")
@@ -100,7 +107,7 @@ export default function UploadPage() {
     }
   }
 
-  const hasContent = files.length > 0 || textItems.length > 0 || urlItems.length > 0
+  const hasContent = files.length > 0 || textItems.length > 0 || urlItems.length > 0 || imageFile !== null
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,7 +120,7 @@ export default function UploadPage() {
             <div className="text-center space-y-4">
               <h2 className="text-4xl font-bold text-foreground">Upload Content for Verification</h2>
               <p className="text-lg text-muted-foreground">
-                Upload files, paste text, or provide URLs to analyze for misinformation
+                Upload files, paste text, provide images, or add URLs to analyze for misinformation
               </p>
             </div>
 
@@ -124,6 +131,8 @@ export default function UploadPage() {
               setTextItems={setTextItems}
               urlItems={urlItems}
               setUrlItems={setUrlItems}
+              imageFile={imageFile}
+              setImageFile={setImageFile}
             />
 
             <div className="flex justify-center animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
@@ -156,6 +165,17 @@ export default function UploadPage() {
                     <p className="text-sm text-muted-foreground text-center py-8">
                       No content added yet. Upload files, paste text, or add URLs to get started.
                     </p>
+                  )}
+
+                  {imageFile && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                        Image (Multimodal)
+                      </h4>
+                      <div className="text-sm p-2 rounded bg-primary/10 border border-primary/20 truncate transition-all duration-300 hover:bg-primary/15">
+                        🖼️ {imageFile.name}
+                      </div>
+                    </div>
                   )}
 
                   {files.length > 0 && (

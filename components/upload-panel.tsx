@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Upload, FileText, ImageIcon, Mic, Video, LinkIcon, X, Plus } from "lucide-react"
+import { Upload, FileText, ImageIcon, Mic, Video, LinkIcon, X, Plus, Eye } from "lucide-react"
 
 interface TextItem {
   id: string
@@ -27,12 +27,15 @@ interface UploadPanelProps {
   setTextItems: (items: TextItem[]) => void
   urlItems: UrlItem[]
   setUrlItems: (items: UrlItem[]) => void
+  imageFile: File | null
+  setImageFile: (file: File | null) => void
 }
 
-export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems, setUrlItems }: UploadPanelProps) {
+export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems, setUrlItems, imageFile, setImageFile }: UploadPanelProps) {
   const [dragActive, setDragActive] = useState(false)
   const [currentText, setCurrentText] = useState("")
   const [currentUrl, setCurrentUrl] = useState("")
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -51,7 +54,16 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
       setDragActive(false)
 
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        setFiles([...files, ...Array.from(e.dataTransfer.files)])
+        const droppedFiles = Array.from(e.dataTransfer.files)
+        const imageFiles = droppedFiles.filter((f) => f.type.startsWith("image/"))
+        const otherFiles = droppedFiles.filter((f) => !f.type.startsWith("image/"))
+
+        if (imageFiles.length > 0) {
+          handleImageSelect(imageFiles[0])
+        }
+        if (otherFiles.length > 0) {
+          setFiles([...files, ...otherFiles])
+        }
       }
     },
     [files, setFiles],
@@ -61,6 +73,26 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
     if (e.target.files && e.target.files[0]) {
       setFiles([...files, ...Array.from(e.target.files)])
     }
+  }
+
+  const handleImageSelect = (file: File) => {
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleImageSelect(e.target.files[0])
+    }
+  }
+
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
   }
 
   const removeFile = (index: number) => {
@@ -111,6 +143,64 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
 
   return (
     <div className="space-y-6">
+      {/* Image Upload Area — Multimodal */}
+      <Card className="p-6 transition-all duration-300 hover:shadow-lg border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <ImageIcon className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-card-foreground">Upload Image</h3>
+              <p className="text-xs text-muted-foreground">For multimodal verification (OCR + CLIP analysis)</p>
+            </div>
+          </div>
+
+          {imagePreview ? (
+            <div className="relative group animate-fade-in">
+              <div className="rounded-lg overflow-hidden border border-border bg-muted/30">
+                <img
+                  src={imagePreview}
+                  alt="Uploaded preview"
+                  className="w-full max-h-48 object-contain"
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-card-foreground truncate max-w-[200px]">{imageFile?.name}</span>
+                  <Badge variant="secondary">{imageFile ? (imageFile.size / 1024).toFixed(1) : 0} KB</Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 transition-all duration-300 hover:scale-110"
+                  onClick={removeImage}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center gap-3 p-6 border-2 border-dashed border-primary/30 rounded-lg cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all duration-300">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center transition-all duration-300 hover:bg-primary/20 hover:scale-110">
+                <ImageIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-card-foreground">Drop an image or click to browse</p>
+                <p className="text-xs text-muted-foreground">Supports: .jpg, .jpeg, .png</p>
+              </div>
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleImageChange}
+                accept=".jpg,.jpeg,.png"
+              />
+            </label>
+          )}
+        </div>
+      </Card>
+
       {/* File Upload Area */}
       <Card
         className={`p-12 border-2 border-dashed transition-all duration-300 ${
@@ -127,14 +217,14 @@ export function UploadPanel({ files, setFiles, textItems, setTextItems, urlItems
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-semibold text-card-foreground">Drop files here or click to browse</p>
-            <p className="text-sm text-muted-foreground">Supports: .txt, .jpg, .png, .mp3, .wav, .mp4</p>
+            <p className="text-sm text-muted-foreground">Supports: .txt, .mp3, .wav, .mp4</p>
           </div>
           <input
             type="file"
             className="hidden"
             onChange={handleFileChange}
             multiple
-            accept=".txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4"
+            accept=".txt,.mp3,.wav,.mp4"
           />
         </label>
       </Card>
