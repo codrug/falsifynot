@@ -19,18 +19,22 @@
 
 ## What is FalsifyNot?
 
-FalsifyNot is a multimodal fact-checking system that takes **text, images, or both**, extracts check-worthy claims, retrieves evidence from a Wikipedia-scale knowledge base, verifies them using NLI (Natural Language Inference), and presents a rich, explainable verdict — complete with provenance graphs, visual context, and clickable external evidence links.
+FalsifyNot is a multimodal fact-checking system that takes **text, images, web links, or YouTube videos**, extracts check-worthy claims, retrieves evidence from a Wikipedia-scale knowledge base, verifies them using NLI (Natural Language Inference), and presents a rich, explainable verdict — complete with multimodal impact analysis and clickable external evidence links.
 
 ---
 
 ## Pipeline
 
 ```
-Text Input ──┐
-             ├──► Claim Extraction ──► Evidence Retrieval ──► NLI Verification ──► Verdict
-Image Input ─┘         │                      │
-(OCR + CLIP)           │                      └──► Wikipedia Links + YouTube Links
-                       └──► Visual Context + Multimodal Contribution
+Text/Image/URL/Video Input
+        │
+        ├──► OCR / Web Scraping / Transcript Extraction
+        │
+        └──► Claim Extraction
+                ├──► Evidence Retrieval ──► NLI Verification ──► Verdict
+                │
+                ├──► Wikipedia Links + YouTube Links
+                └──► Visual Context + Multimodal Impact Analysis
 ```
 
 ---
@@ -39,11 +43,10 @@ Image Input ─┘         │                      │
 
 | Feature | Description |
 |---|---|
+| **Multi-Source Input**| Verifies direct text, images (OCR via EasyOCR), web articles (newspaper3k), and video (youtube-transcript-api) |
 | **Claim Extraction** | Fine-tuned BERT model identifies check-worthy sentences |
 | **Semantic Retrieval** | FAISS + BGE embeddings search a Wikipedia-scale corpus |
 | **NLI Verification** | DeBERTa v3 classifies each claim-evidence pair as SUPPORTS / REFUTES / NEUTRAL |
-| **Image OCR** | EasyOCR extracts text from uploaded images, merged into the pipeline |
-| **CLIP Similarity** | Measures semantic alignment between the image and extracted claims |
 | **External Evidence** | Auto-generates Wikipedia links and YouTube search links for every claim |
 | **Multimodal Impact Analysis** | Compares text-only verdicts vs. image-augmented results to show visual influence |
 | **Explainability** | Highlights key terms, confidence breakdown, and model reasoning |

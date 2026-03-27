@@ -52,13 +52,17 @@ export default function UploadPage() {
       .map((item) => ({ ...item, content: item.content.trim() }))
       .filter((item) => item.content)
     const { items: fileTextItems, skippedCount } = await readTextFromFiles(files)
-    const validTextItems = [...trimmedTextItems, ...fileTextItems]
+
+    // Treat URLs exactly like text input; the backend will route them automatically
+    const formattedUrlItems = urlItems.map((item) => ({ id: item.id, content: item.url.trim() }))
+
+    const validTextItems = [...trimmedTextItems, ...fileTextItems, ...formattedUrlItems]
 
     // Allow image-only analysis (OCR will extract text)
     if (validTextItems.length === 0 && !imageFile) {
       const message = skippedCount > 0
         ? "Only .txt files can be analyzed right now. Add text or upload .txt files."
-        : "Add at least one text item, .txt file, or an image to analyze."
+        : "Add at least one text item, URL, .txt file, or an image to analyze."
       setErrorMessage(message)
       return
     }

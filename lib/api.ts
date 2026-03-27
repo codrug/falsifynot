@@ -69,6 +69,12 @@ export interface ExternalEvidence {
 
 // --- Core types ---
 
+export interface InputSourceInfo {
+  source_type: string
+  source_url?: string | null
+  source_title?: string | null
+}
+
 export interface ExtractedClaim {
   id: string
   text: string
@@ -82,6 +88,8 @@ export interface ExtractedClaim {
   visual_context?: VisualContext | null
   multimodal_contribution?: MultimodalContribution | null
   external_evidence?: ExternalEvidence | null
+  // Source tracking
+  input_source?: InputSourceInfo | null
 }
 
 export interface AnalyzeResponse {

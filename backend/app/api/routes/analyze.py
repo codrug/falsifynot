@@ -19,6 +19,8 @@ from app.ml.verifier import verify_claim
 from app.ml.ocr_service import extract_text_from_image
 from app.ml.clip_service import compute_image_text_similarity
 from app.ml.link_service import generate_external_evidence
+from app.ml.web_scraper import extract_text_from_url, is_web_url
+from app.ml.video_service import extract_transcript, is_youtube_url
 
 logger = get_logger(__name__)
 
@@ -177,7 +179,7 @@ def extract_evidence_highlight(evidence_text: str, matched_terms: list[str]) -> 
     return " ".join(words[:6]) if words else ""
 
 
-def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None):
+def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None, source_type: str = "text", source_url: Optional[str] = None, source_title: Optional[str] = None):
     """Run the core claim extraction + evidence + verification pipeline.
     
     Returns list of ExtractedClaim dicts (not yet Pydantic objects).
@@ -320,6 +322,11 @@ def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None):
             "best_evidence_score": best_evidence_score,
             "external_evidence": external_evidence,
             "visual_context": visual_context,
+            "input_source": {
+                "source_type": source_type,
+                "source_url": source_url,
+                "source_title": source_title
+            }
         })
     
     return claims_data
@@ -347,9 +354,30 @@ async def analyze(
         except Exception as e:
             logger.error(f"Failed to read image: {e}")
     
+    # Determine if input is a URL and extract text/metadata
+    source_type = "text"
+    source_url = None
+    source_title = None
+
+    if is_youtube_url(text):
+        source_type = "video"
+        source_url = text.strip()
+        logger.info(f"Processing YouTube URL: {source_url}")
+        video_data = extract_transcript(source_url)
+        text = video_data["text"]
+        source_title = video_data["title"]
+    elif is_web_url(text):
+        source_type = "web"
+        source_url = text.strip()
+        logger.info(f"Processing Web URL: {source_url}")
+        web_data = extract_text_from_url(source_url)
+        text = web_data["text"]
+        source_title = web_data["title"]
+        
     # If image is provided and text is minimal, try to extract text from image via OCR
     ocr_text = ""
     if image_bytes:
+        source_type = "image" if not text.strip() else f"{source_type}+image"
         ocr_text = extract_text_from_image(image_bytes)
         logger.info(f"OCR extracted text: {ocr_text[:200] if ocr_text else '(none)'}")
     
@@ -362,11 +390,23 @@ async def analyze(
         return AnalyzeResponse(claims=[])
     
     # Run text-only pipeline first
-    text_only_data = _run_pipeline_for_text(text.strip(), image_bytes=None)
+    text_only_data = _run_pipeline_for_text(
+        text.strip(), 
+        image_bytes=None, 
+        source_type=source_type, 
+        source_url=source_url, 
+        source_title=source_title
+    )
     
     # If we have image context, run the augmented pipeline too
     if ocr_text and analysis_text != text.strip():
-        augmented_data = _run_pipeline_for_text(analysis_text, image_bytes=image_bytes)
+        augmented_data = _run_pipeline_for_text(
+            analysis_text, 
+            image_bytes=image_bytes, 
+            source_type=source_type, 
+            source_url=source_url, 
+            source_title=source_title
+        )
     else:
         augmented_data = None
     
@@ -424,6 +464,7 @@ async def analyze(
                 visual_context=cd.get("visual_context"),
                 multimodal_contribution=multimodal_contribution,
                 external_evidence=cd["external_evidence"],
+                input_source=cd.get("input_source")
             )
         )
         

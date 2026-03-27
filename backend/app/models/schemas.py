@@ -77,6 +77,15 @@ class ExternalEvidence(BaseModel):
     video_sources: List[VideoSource] = Field(default_factory=list, description="YouTube and video source links")
 
 
+# --- Input Source Tracking ---
+
+class InputSourceInfo(BaseModel):
+    """Tracks the original input source for a claim."""
+    source_type: str = Field("text", description="Input type: text, image, web, video")
+    source_url: Optional[str] = Field(None, description="Original URL if input was web/video")
+    source_title: Optional[str] = Field(None, description="Article/video title if available")
+
+
 # --- Core Models ---
 
 class ExtractedClaim(BaseModel):
@@ -94,6 +103,8 @@ class ExtractedClaim(BaseModel):
     visual_context: Optional[VisualContext] = Field(None, description="Visual context from uploaded image")
     multimodal_contribution: Optional[MultimodalContribution] = Field(None, description="Multimodal vs text-only comparison")
     external_evidence: Optional[ExternalEvidence] = Field(None, description="External web and video links")
+    # Source tracking
+    input_source: Optional[InputSourceInfo] = Field(None, description="Original input source info")
 
 
 class AnalyzeRequest(BaseModel):
