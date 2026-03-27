@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # ML Settings - Retrieval
     RETRIEVAL_INDEX_PATH: str = "data/wiki_faiss.index"
     RETRIEVAL_METADATA_PATH: str = "data/wiki_corpus_metadata.csv"
-    RETRIEVAL_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    RETRIEVAL_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
     RETRIEVAL_TOP_K: int = 5
     RETRIEVAL_DEVICE: str = "auto"  # "auto", "cuda", or "cpu"
 

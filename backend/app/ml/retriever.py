@@ -44,7 +44,7 @@ def load_retriever():
         metadata = pd.read_parquet(METADATA_PARQUET_FILE, engine="fastparquet")
 
         print("Loading embedding model...")
-        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 
         model_loaded = True
         print("Retriever ready.")

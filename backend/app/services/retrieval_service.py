@@ -16,7 +16,7 @@ class RetrievalService:
         self,
         index_path: str = "data/wiki_faiss.index",
         metadata_path: str = "data/wiki_corpus_metadata.csv",
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        model_name: str = "BAAI/bge-small-en-v1.5",
         top_k: int = 5,
         device: Optional[str] = None
     ):
