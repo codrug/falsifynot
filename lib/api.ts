@@ -5,6 +5,8 @@ export interface EvidenceResult {
   matched_terms?: string[]
   verdict?: string | null
   confidence?: number | null
+  quality_score?: number | null
+  highlight_text?: string | null
 }
 
 export interface ProvenanceNode {
@@ -40,6 +42,7 @@ export interface ExtractedClaim {
   id: string
   text: string
   confidence: number
+  claim_type?: string | null
   verdict?: string | null
   evidence?: EvidenceResult[]
   provenance?: ProvenanceGraphData

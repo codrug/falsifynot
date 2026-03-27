@@ -35,6 +35,42 @@ BAD_EVIDENCE_KEYWORDS = {
     "genus",
 }
 
+OPINION_MARKERS = (
+    "i think",
+    "i believe",
+    "in my opinion",
+    "we must",
+    "we should",
+    "i feel",
+    "probably",
+    "maybe",
+)
+
+CAUSAL_MARKERS = (
+    "caused",
+    "causes",
+    "cause",
+    "leads to",
+    "led to",
+    "results in",
+    "resulted in",
+    "because",
+    "due to",
+    "driven by",
+    "impact",
+    "affect",
+)
+
+ASSERTION_MARKERS = (
+    " is ",
+    " are ",
+    " was ",
+    " were ",
+    " has ",
+    " have ",
+    " had ",
+)
+
 
 def simplify_claim(claim: str) -> str:
     simplified = claim.strip()
@@ -78,11 +114,59 @@ def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9']+", text.lower()))
 
 
+def has_numeric_signal(text: str) -> bool:
+    return bool(re.search(r"\b\d+(?:\.\d+)?(?:%|\s?(?:million|billion|trillion|k|km|kg|cm|mm|m|years?|months?|days?|c|f))?\b", text.lower()))
+
+
+def has_factual_structure(text: str) -> bool:
+    lower_text = f" {text.lower().strip()} "
+    has_assertion = any(marker in lower_text for marker in ASSERTION_MARKERS)
+    has_entity_like_token = bool(re.search(r"\b[A-Z][a-z]{2,}\b", text))
+    has_year = bool(re.search(r"\b(19|20)\d{2}\b", text))
+    return has_assertion and (has_entity_like_token or has_year)
+
+
+def classify_claim_type(claim: str) -> str:
+    lower_claim = claim.lower()
+
+    if has_numeric_signal(claim):
+        return "Statistical"
+    if any(marker in lower_claim for marker in CAUSAL_MARKERS):
+        return "Causal"
+    if any(marker in lower_claim for marker in OPINION_MARKERS):
+        return "Opinion"
+    if has_factual_structure(claim):
+        # Descriptive factual claims are grouped into Causal for the 3-class output.
+        return "Causal"
+    return "Opinion"
+
+
+def is_claim_analyst_worthy(claim: str) -> bool:
+    # High-impact gate: discard low-fact claims with neither numeric nor factual structure.
+    return has_numeric_signal(claim) or has_factual_structure(claim)
+
+
 def highlight_overlap(claim: str, evidence: str) -> list[str]:
     claim_words = _tokenize(claim) - STOPWORDS
     evidence_words = _tokenize(evidence) - STOPWORDS
     overlap = claim_words.intersection(evidence_words)
     return sorted(overlap)
+
+
+def extract_evidence_highlight(evidence_text: str, matched_terms: list[str]) -> str:
+    numeric_match = re.search(
+        r"\b\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|k|km|kg|cm|mm|m|years?|months?|days?)\b",
+        evidence_text,
+        flags=re.IGNORECASE,
+    )
+    if numeric_match:
+        return numeric_match.group(0)
+
+    if matched_terms:
+        return matched_terms[0]
+
+    words = evidence_text.strip().split()
+    return " ".join(words[:6]) if words else ""
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
@@ -98,6 +182,11 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
     for rc in raw_claims:
         claim_text = rc["sentence"]
         confidence = rc["confidence"]
+        claim_type = classify_claim_type(claim_text)
+
+        if not is_claim_analyst_worthy(claim_text):
+            logger.info("Discarding low-fact claim: %s", claim_text[:120])
+            continue
         
         # 2. Retrieve Evidence
         query = build_retrieval_query(claim_text)
@@ -108,6 +197,7 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
         evidence_results = []
         best_verdict = "NEUTRAL"
         best_verdict_conf = 0.0
+        best_evidence_score = 0.0
         overlap_vocab = set()
         retrieval_scores = []
         has_supporting = False
@@ -117,16 +207,22 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             v_res = verify_claim(claim_text, ev["text"])
             normalized_verdict = normalize_verdict_label(v_res["verdict"])
             matched_terms = highlight_overlap(claim_text, ev["text"])
+            retrieval_score = float(ev.get("score") or 0.0)
+            nli_confidence = float(v_res.get("confidence") or 0.0)
+            quality_score = max(0.0, min(1.0, retrieval_score)) * max(0.0, min(1.0, nli_confidence))
+            highlight_text = extract_evidence_highlight(ev["text"], matched_terms)
             overlap_vocab.update(matched_terms)
-            retrieval_scores.append(ev["score"])
+            retrieval_scores.append(retrieval_score)
             evidence_results.append(
                 EvidenceResult(
                     text=ev["text"],
-                    score=ev["score"],
+                    score=retrieval_score,
                     source=ev.get("page") or "Unknown",
                     matched_terms=matched_terms,
                     verdict=normalized_verdict,
-                    confidence=v_res["confidence"]
+                    confidence=nli_confidence,
+                    quality_score=quality_score,
+                    highlight_text=highlight_text,
                 )
             )
 
@@ -135,8 +231,15 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             elif normalized_verdict == "REFUTES":
                 has_refuting = True
 
-            if v_res["confidence"] > best_verdict_conf:
-                best_verdict_conf = v_res["confidence"]
+            if nli_confidence > best_verdict_conf:
+                best_verdict_conf = nli_confidence
+            if quality_score > best_evidence_score:
+                best_evidence_score = quality_score
+
+        evidence_results.sort(
+            key=lambda item: float(item.quality_score or 0.0),
+            reverse=True,
+        )
 
         if has_supporting:
             best_verdict = "SUPPORTS"
@@ -179,6 +282,7 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 id=str(uuid4()),
                 text=claim_text,
                 confidence=confidence,
+                claim_type=claim_type,
                 verdict=best_verdict,
                 evidence=evidence_results,
                 provenance={
@@ -188,8 +292,8 @@ async def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 explainability={
                     "highlights": highlights,
                     "confidence_details": {
-                        "model_score": confidence,
-                        "best_nli_confidence": best_verdict_conf,
+                        "model_confidence": confidence,
+                        "best_evidence_score": best_evidence_score,
                         "avg_retrieval_score": avg_retrieval,
                     }
                 }

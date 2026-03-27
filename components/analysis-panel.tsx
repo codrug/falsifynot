@@ -38,6 +38,7 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary">ID: {claim.id}</Badge>
           <Badge variant="secondary">Text ID: {claim.sourceTextId}</Badge>
+          {claim.claim_type ? <Badge variant="outline">Type: {claim.claim_type}</Badge> : null}
         </div>
         <h2 className="text-3xl font-bold text-foreground text-balance">{claim.text}</h2>
       </div>
@@ -100,9 +101,19 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
                     <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-primary/30">
                       Score: {item.score.toFixed(3)}
                     </Badge>
+                    {typeof item.quality_score === "number" ? (
+                      <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-chart-4/40 text-chart-4">
+                        Quality: {item.quality_score.toFixed(3)}
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
                 <p className="text-sm text-card-foreground leading-relaxed italic">&quot;{item.text}&quot;</p>
+                {item.highlight_text ? (
+                  <div className="text-xs text-chart-4 font-medium bg-chart-4/10 rounded px-2 py-1 inline-block">
+                    Highlight: {item.highlight_text}
+                  </div>
+                ) : null}
                 {item.matched_terms && item.matched_terms.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {item.matched_terms.slice(0, 8).map((term) => (
@@ -176,6 +187,8 @@ function getNormalizedEvidence(claim: StoredClaim): EvidenceResult[] {
         matched_terms: Array.isArray(item.matched_terms) ? item.matched_terms : [],
         verdict: item.verdict,
         confidence: typeof item.confidence === "number" ? item.confidence : null,
+        quality_score: typeof item.quality_score === "number" ? item.quality_score : null,
+        highlight_text: typeof item.highlight_text === "string" ? item.highlight_text : null,
       }))
       .filter((item) => item.text.length > 0)
   }
@@ -194,6 +207,8 @@ function getNormalizedEvidence(claim: StoredClaim): EvidenceResult[] {
       matched_terms: [],
       verdict: null,
       confidence: null,
+      quality_score: null,
+      highlight_text: null,
     }))
     .filter((item) => item.text.length > 0)
 }

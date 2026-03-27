@@ -65,9 +65,19 @@ export function RightPanel({ claimIndex, claim }: RightPanelProps) {
                       <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-primary/30">
                         Score: {item.score.toFixed(3)}
                       </Badge>
+                      {typeof item.quality_score === "number" ? (
+                        <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 border-chart-4/40 text-chart-4">
+                          Quality: {item.quality_score.toFixed(3)}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
                   <p className="text-sm text-card-foreground leading-relaxed italic">"{item.text}"</p>
+                  {item.highlight_text ? (
+                    <div className="text-xs text-chart-4 font-medium bg-chart-4/10 rounded px-2 py-1 inline-block">
+                      Highlight: {item.highlight_text}
+                    </div>
+                  ) : null}
                   {item.matched_terms && item.matched_terms.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {item.matched_terms.slice(0, 8).map((term) => (

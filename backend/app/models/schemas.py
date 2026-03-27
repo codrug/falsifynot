@@ -12,6 +12,8 @@ class EvidenceResult(BaseModel):
     matched_terms: List[str] = Field(default_factory=list, description="Lexical overlap terms with the claim")
     verdict: Optional[str] = Field(None, description="Verdict from NLI model")
     confidence: Optional[float] = Field(None, description="Confidence in the verdict")
+    quality_score: Optional[float] = Field(None, description="Combined evidence quality score")
+    highlight_text: Optional[str] = Field(None, description="Most relevant evidence snippet/phrase")
 
 
 class ProvenanceNode(BaseModel):
@@ -47,6 +49,7 @@ class ExtractedClaim(BaseModel):
     id: str = Field(..., description="Unique claim identifier")
     text: str = Field(..., description="The claim text")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Extraction confidence (0-1)")
+    claim_type: Optional[str] = Field(None, description="Claim type: Statistical, Causal, Opinion")
     verdict: Optional[str] = Field(None, description="Analysis verdict")
     evidence: List[EvidenceResult] = Field(default_factory=list, description="Retrieved evidence")
     provenance: Optional[Dict[str, Any]] = Field(None, description="Provenance graph data")
