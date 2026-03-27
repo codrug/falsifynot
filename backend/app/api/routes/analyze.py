@@ -144,11 +144,13 @@ def classify_claim_type(claim: str) -> str:
     if any(marker in lower_claim for marker in OPINION_MARKERS):
         return "Opinion"
     if has_factual_structure(claim):
+        # Descriptive factual claims are grouped into Causal for the 3-class output.
         return "Causal"
     return "Opinion"
 
 
 def is_claim_analyst_worthy(claim: str) -> bool:
+    # High-impact gate: discard low-fact claims with neither numeric nor factual structure.
     return has_numeric_signal(claim) or has_factual_structure(claim)
 
 

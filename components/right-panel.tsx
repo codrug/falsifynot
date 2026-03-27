@@ -77,12 +77,7 @@ export function RightPanel({ claimIndex, claim }: RightPanelProps) {
                       ) : null}
                     </div>
                   </div>
-                  <p className="text-sm text-card-foreground leading-relaxed italic">&quot;{item.text}&quot;</p>
-                  {item.highlight_text ? (
-                    <div className="text-xs text-chart-4 font-medium bg-chart-4/10 rounded px-2 py-1 inline-block">
-                      Highlight: {item.highlight_text}
-                    </div>
-                  ) : null}
+                  <p className="text-sm text-card-foreground leading-relaxed italic">"{item.text}"</p>
                   {item.matched_terms && item.matched_terms.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {item.matched_terms.slice(0, 8).map((term) => (
