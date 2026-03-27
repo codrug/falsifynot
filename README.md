@@ -6,13 +6,6 @@
 
 ### **AI-Powered Multimodal Fake News Verification**
 
-*Paste a claim, upload an image, get the truth.*
-
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Python](https://img.shields.io/badge/Python-3.11-3776ab?logo=python)](https://python.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)](https://typescriptlang.org)
-
 </div>
 
 ---
@@ -50,7 +43,6 @@ Text/Image/URL/Video Input
 | **External Evidence** | Auto-generates Wikipedia links and YouTube search links for every claim |
 | **Multimodal Impact Analysis** | Compares text-only verdicts vs. image-augmented results to show visual influence |
 | **Explainability** | Highlights key terms, confidence breakdown, and model reasoning |
-| **Dark / Light Mode** | Full theme support |
 
 ---
 
