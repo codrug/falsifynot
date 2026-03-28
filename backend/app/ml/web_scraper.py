@@ -4,9 +4,34 @@ Uses newspaper3k for clean article extraction with BeautifulSoup fallback.
 """
 
 import logging
-from typing import Optional
+import re
 
 logger = logging.getLogger(__name__)
+
+BOILERPLATE_MARKERS = (
+    "all rights reserved",
+    "already a registered user",
+    "sign in",
+    "sign up",
+    "privacy policy",
+    "cookie policy",
+    "terms of use",
+    "advertisement",
+    "follow us",
+)
+
+
+def _is_noise_paragraph(text: str) -> bool:
+    normalized = " ".join(text.lower().split())
+    if not normalized:
+        return True
+    if len(normalized) < 40:
+        return True
+    if any(marker in normalized for marker in BOILERPLATE_MARKERS):
+        return True
+    if re.fullmatch(r"[\w\s.,:;!?()'\"-]+", normalized) is None:
+        return True
+    return False
 
 
 def extract_text_from_url(url: str) -> dict:
@@ -75,7 +100,12 @@ def extract_text_from_url(url: str) -> dict:
         content_tag = soup.find("article") or soup.find("main") or soup.find("body")
         if content_tag:
             paragraphs = content_tag.find_all("p")
-            text_parts = [p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30]
+            text_parts = []
+            for paragraph in paragraphs:
+                paragraph_text = paragraph.get_text(strip=True)
+                if _is_noise_paragraph(paragraph_text):
+                    continue
+                text_parts.append(paragraph_text)
             result["text"] = "\n".join(text_parts)
 
         if result["text"].strip():

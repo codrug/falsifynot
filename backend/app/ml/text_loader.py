@@ -1,5 +1,6 @@
 import os
 import nltk
+import re
 from pathlib import Path
 from docx import Document
 import PyPDF2
@@ -7,6 +8,32 @@ import PyPDF2
 # Download NLTK data
 from nltk.tokenize import sent_tokenize
 import ssl
+
+BOILERPLATE_PATTERNS = (
+    "all rights reserved",
+    "sign in",
+    "sign up",
+    "already a registered user",
+    "continue to engage",
+    "privacy policy",
+    "cookie policy",
+    "terms of service",
+)
+
+
+def is_boilerplate_sentence(sentence):
+    normalized = " ".join(sentence.lower().split())
+    if not normalized:
+        return True
+    if len(normalized.split()) <= 4:
+        return True
+    if any(pattern in normalized for pattern in BOILERPLATE_PATTERNS):
+        return True
+    if normalized.startswith(("read more", "click here", "watch now", "share this")):
+        return True
+    if re.search(r"^[^a-z0-9]+$", normalized):
+        return True
+    return False
 
 def ensure_nltk_resources():
     """Ensure required NLTK resources are downloaded once."""
@@ -114,8 +141,8 @@ def split_into_sentences(text):
     
     try:
         sentences = sent_tokenize(text)
-        # Filter out empty sentences
-        sentences = [s.strip() for s in sentences if s.strip()]
+        # Filter out empty and boilerplate-like sentences before claim inference.
+        sentences = [s.strip() for s in sentences if s.strip() and not is_boilerplate_sentence(s)]
         return sentences
     except Exception as e:
         print(f"Error splitting sentences: {e}")

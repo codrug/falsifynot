@@ -73,6 +73,8 @@ export interface InputSourceInfo {
   source_type: string
   source_url?: string | null
   source_title?: string | null
+  source_extension?: string | null
+  source_name?: string | null
 }
 
 export interface ExtractedClaim {
@@ -105,6 +107,14 @@ export interface TextAnalysis {
 export interface StoredClaim extends ExtractedClaim {
   sourceTextId: string
   sourceText: string
+  sourceInputKind?: "text" | "url" | "file" | "image"
+  sourceInputLabel?: string
+  sourceFileExtension?: string | null
+}
+
+export interface AnalyzeContentOptions {
+  sourceName?: string
+  sourceExtension?: string
 }
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -113,9 +123,19 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost
  * Analyze content with optional image for multimodal verification.
  * Sends multipart/form-data to the backend.
  */
-export async function analyzeContent(text: string, imageFile?: File | null): Promise<AnalyzeResponse> {
+export async function analyzeContent(
+  text: string,
+  imageFile?: File | null,
+  options?: AnalyzeContentOptions,
+): Promise<AnalyzeResponse> {
   const formData = new FormData()
   formData.append("text", text)
+  if (options?.sourceName) {
+    formData.append("source_name", options.sourceName)
+  }
+  if (options?.sourceExtension) {
+    formData.append("source_extension", options.sourceExtension)
+  }
   if (imageFile) {
     formData.append("image", imageFile)
   }

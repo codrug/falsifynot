@@ -81,6 +81,20 @@ ASSERTION_MARKERS = (
     " had ",
 )
 
+BOILERPLATE_PATTERNS = (
+    "all rights reserved",
+    "sign in",
+    "sign up",
+    "log in",
+    "already a registered user",
+    "continue to engage",
+    "subscribe",
+    "cookie policy",
+    "privacy policy",
+    "terms of service",
+    "download app",
+)
+
 
 def simplify_claim(claim: str) -> str:
     simplified = claim.strip()
@@ -151,8 +165,23 @@ def classify_claim_type(claim: str) -> str:
     return "Opinion"
 
 
+def is_boilerplate_claim(text: str) -> bool:
+    normalized = " ".join(text.lower().split())
+    if not normalized:
+        return True
+    if len(normalized.split()) <= 5 and not has_numeric_signal(text):
+        return True
+    if any(pattern in normalized for pattern in BOILERPLATE_PATTERNS):
+        return True
+    if normalized.startswith(("read more", "click here", "watch now", "share this")):
+        return True
+    return False
+
+
 def is_claim_analyst_worthy(claim: str) -> bool:
     # High-impact gate: discard low-fact claims with neither numeric nor factual structure.
+    if is_boilerplate_claim(claim):
+        return False
     return has_numeric_signal(claim) or has_factual_structure(claim)
 
 
@@ -179,7 +208,15 @@ def extract_evidence_highlight(evidence_text: str, matched_terms: list[str]) -> 
     return " ".join(words[:6]) if words else ""
 
 
-def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None, source_type: str = "text", source_url: Optional[str] = None, source_title: Optional[str] = None):
+def _run_pipeline_for_text(
+    text: str,
+    image_bytes: Optional[bytes] = None,
+    source_type: str = "text",
+    source_url: Optional[str] = None,
+    source_title: Optional[str] = None,
+    source_extension: Optional[str] = None,
+    source_name: Optional[str] = None,
+):
     """Run the core claim extraction + evidence + verification pipeline.
     
     Returns list of ExtractedClaim dicts (not yet Pydantic objects).
@@ -325,7 +362,9 @@ def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None, sourc
             "input_source": {
                 "source_type": source_type,
                 "source_url": source_url,
-                "source_title": source_title
+                "source_title": source_title,
+                "source_extension": source_extension,
+                "source_name": source_name,
             }
         })
     
@@ -336,6 +375,8 @@ def _run_pipeline_for_text(text: str, image_bytes: Optional[bytes] = None, sourc
 async def analyze(
     text: str = Form(...),
     image: Optional[UploadFile] = File(None),
+    source_name: Optional[str] = Form(None),
+    source_extension: Optional[str] = Form(None),
 ) -> AnalyzeResponse:
     """Analyze incoming text (and optional image) for fake news verification.
     
@@ -395,7 +436,9 @@ async def analyze(
         image_bytes=None, 
         source_type=source_type, 
         source_url=source_url, 
-        source_title=source_title
+        source_title=source_title,
+        source_extension=source_extension,
+        source_name=source_name,
     )
     
     # If we have image context, run the augmented pipeline too
@@ -405,7 +448,9 @@ async def analyze(
             image_bytes=image_bytes, 
             source_type=source_type, 
             source_url=source_url, 
-            source_title=source_title
+            source_title=source_title,
+            source_extension=source_extension,
+            source_name=source_name,
         )
     else:
         augmented_data = None

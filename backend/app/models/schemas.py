@@ -84,6 +84,8 @@ class InputSourceInfo(BaseModel):
     source_type: str = Field("text", description="Input type: text, image, web, video")
     source_url: Optional[str] = Field(None, description="Original URL if input was web/video")
     source_title: Optional[str] = Field(None, description="Article/video title if available")
+    source_extension: Optional[str] = Field(None, description="Original file extension when uploaded as a file")
+    source_name: Optional[str] = Field(None, description="Original source label or file name")
 
 
 # --- Core Models ---
