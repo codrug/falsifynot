@@ -162,7 +162,3 @@ interface AnalysisResponse {
   limitations: string[];
 }
 ```
-
-## 📄 License
-
-MIT
