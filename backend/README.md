@@ -2,48 +2,7 @@
 
 FastAPI-based backend for the FalsifyNot fact-checking application.
 
-## 🚀 Quick Start
-
-### Local Development
-
-1. **Create virtual environment:**
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Setup environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env as needed
-   ```
-
-4. **Run the server:**
-   ```bash
-   python -m app.main
-   # Or using uvicorn directly:
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-5. **Access the API:**
-   - API: http://localhost:8000
-   - Interactive docs: http://localhost:8000/docs
-   - Alternative docs: http://localhost:8000/redoc
-
-### Docker Development
-
-```bash
-# From project root
-docker-compose up backend
-```
-
-## 📚 API Documentation
+## API Documentation
 
 ### Endpoints
 
@@ -77,7 +36,7 @@ Health check endpoint.
 }
 ```
 
-## 📦 API Contract
+## API Contract
 
 ### Pydantic Models
 
@@ -117,28 +76,6 @@ Health check endpoint.
 }
 ```
 
-## 🏗️ Architecture
-
-```
-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI app entry point
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes.py        # API endpoints
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py        # Settings & configuration
-│   │   └── logging.py       # Logging setup
-│   └── models/
-│       ├── __init__.py
-│       └── responses.py     # Pydantic response models
-├── Dockerfile
-├── requirements.txt
-└── .env.example
-```
-
 ## 🔧 Configuration
 
 Environment variables (`.env`):
@@ -174,28 +111,6 @@ The backend uses structured logging with support for both JSON and text formats.
 ```
 2024-02-15 12:00:00 - app.api.routes - INFO - Received analysis request
 ```
-
-## 🧪 Current Status
-
-✅ **Implemented:**
-- FastAPI application scaffold
-- Pydantic models (ClaimResponse, EvidenceResponse, AnalysisResponse)
-- API endpoints with mock responses
-- Structured logging (JSON/text)
-- CORS configuration
-- Docker setup
-- Health check endpoint
-
-⏳ **Mock Data:**
-- All endpoints currently return mock data
-- Ready for frontend integration testing
-
-🔜 **Next Steps:**
-- Integrate actual AI/ML fact-checking models
-- Add database for persistence
-- Implement caching layer
-- Add authentication/authorization
-- Rate limiting
 
 ## 🔗 Frontend Integration
 
