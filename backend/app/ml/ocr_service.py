@@ -5,12 +5,57 @@ Uses EasyOCR for reliable text extraction from uploaded images.
 
 import io
 import logging
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Lazy-loaded reader instance
 _reader = None
+
+
+def _normalize_line(line: str) -> str:
+    """Normalize OCR line text while preserving meaning."""
+    cleaned = " ".join((line or "").split())
+    # Drop isolated symbol tokens that usually come from OCR noise.
+    tokens = [tok for tok in cleaned.split(" ") if tok and re.search(r"[A-Za-z0-9]", tok)]
+    cleaned = " ".join(tokens)
+    # Keep common punctuation, remove mostly-decorative noise characters.
+    cleaned = re.sub(r"[^A-Za-z0-9\s\.,:;\-\(\)\[\]'\"%]", "", cleaned)
+    return " ".join(cleaned.split()).strip()
+
+
+def _tokenize_for_similarity(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9']+", text.lower()))
+
+
+def _is_near_duplicate(candidate: str, existing: list[str], threshold: float = 0.85) -> bool:
+    cand_tokens = _tokenize_for_similarity(candidate)
+    if not cand_tokens:
+        return True
+    for line in existing:
+        line_tokens = _tokenize_for_similarity(line)
+        if not line_tokens:
+            continue
+        overlap = len(cand_tokens.intersection(line_tokens))
+        score = overlap / max(1, min(len(cand_tokens), len(line_tokens)))
+        if score >= threshold:
+            return True
+    return False
+
+
+def _postprocess_ocr_lines(lines: list[str]) -> str:
+    """Normalize and deduplicate OCR lines to keep cleaner inputs for the NLP pipeline."""
+    compact_lines: list[str] = []
+    for raw in lines:
+        line = _normalize_line(raw)
+        if len(line) < 8:
+            continue
+        if _is_near_duplicate(line, compact_lines):
+            continue
+        compact_lines.append(line)
+
+    return "\n".join(compact_lines).strip()
 
 
 def _get_reader():
@@ -20,7 +65,8 @@ def _get_reader():
         try:
             import easyocr
             logger.info("Loading EasyOCR reader...")
-            _reader = easyocr.Reader(["en"], gpu=False)
+            # Disable verbose progress bars to avoid Windows console encoding issues.
+            _reader = easyocr.Reader(["en"], gpu=False, verbose=False)
             logger.info("[OK] EasyOCR reader loaded.")
         except ImportError:
             logger.warning("easyocr not installed. OCR will be unavailable.")
@@ -57,7 +103,7 @@ def extract_text_from_image(image_bytes: bytes) -> str:
             logger.info("OCR found no text in the image.")
             return ""
 
-        extracted = " ".join(results).strip()
+        extracted = _postprocess_ocr_lines([str(item) for item in results])
         logger.info(f"OCR extracted {len(extracted)} characters from image.")
         return extracted
 

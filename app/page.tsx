@@ -143,16 +143,6 @@ export default function LandingPage() {
                     Dashboard
                   </Link>
                 </li>
-                <li>
-                  <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/api-access" className="text-muted-foreground hover:text-foreground transition-colors">
-                    API Access
-                  </Link>
-                </li>
               </ul>
             </div>
 

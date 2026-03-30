@@ -208,6 +208,21 @@ def extract_evidence_highlight(evidence_text: str, matched_terms: list[str]) -> 
     return " ".join(words[:6]) if words else ""
 
 
+def _fallback_claims_from_text(text: str) -> list[dict]:
+    """Create minimal fallback claim candidates from raw text when model extraction yields nothing."""
+    chunks = [part.strip() for part in re.split(r"(?<=[\.!?])\s+|\n+", text) if part and part.strip()]
+    candidates = []
+    for sentence in chunks:
+        if len(sentence.split()) < 6:
+            continue
+        if is_boilerplate_claim(sentence):
+            continue
+        candidates.append({"sentence": sentence[:450], "confidence": 0.55})
+        if len(candidates) >= 2:
+            break
+    return candidates
+
+
 def _run_pipeline_for_text(
     text: str,
     image_bytes: Optional[bytes] = None,
@@ -222,6 +237,10 @@ def _run_pipeline_for_text(
     Returns list of ExtractedClaim dicts (not yet Pydantic objects).
     """
     raw_claims = extract_checkworthy_claims(text, threshold=settings.CLAIM_CONFIDENCE_THRESHOLD)
+    if not raw_claims and source_type in {"web", "video"}:
+        raw_claims = _fallback_claims_from_text(text)
+        if raw_claims:
+            logger.info("Using fallback claim generation (%s candidate(s)) for %s input.", len(raw_claims), source_type)
     
     claims_data = []
     
@@ -231,8 +250,17 @@ def _run_pipeline_for_text(
         claim_type = classify_claim_type(claim_text)
 
         if not is_claim_analyst_worthy(claim_text):
-            logger.info("Discarding low-fact claim: %s", claim_text[:120])
-            continue
+            # Keep borderline claims for URL/video sources when extractor found very few options.
+            # This prevents title-only fallback text from always producing empty results.
+            should_keep_borderline = (
+                source_type in {"web", "video"}
+                and len(raw_claims) <= 2
+                and len(claim_text.split()) >= 6
+            )
+            if not should_keep_borderline:
+                logger.info("Discarding low-fact claim: %s", claim_text[:120])
+                continue
+            logger.info("Keeping borderline URL-derived claim: %s", claim_text[:120])
         
         # Retrieve Evidence
         query = build_retrieval_query(claim_text)
@@ -373,7 +401,7 @@ def _run_pipeline_for_text(
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
-    text: str = Form(...),
+    text: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     source_name: Optional[str] = Form(None),
     source_extension: Optional[str] = Form(None),
@@ -395,44 +423,55 @@ async def analyze(
         except Exception as e:
             logger.error(f"Failed to read image: {e}")
     
+    # Normalize optional text input so image-only requests don't fail validation.
+    normalized_text = (text or "").strip()
+
     # Determine if input is a URL and extract text/metadata
     source_type = "text"
     source_url = None
     source_title = None
+    processing_meta = None
 
-    if is_youtube_url(text):
+    if normalized_text and is_youtube_url(normalized_text):
         source_type = "video"
-        source_url = text.strip()
+        source_url = normalized_text
         logger.info(f"Processing YouTube URL: {source_url}")
         video_data = extract_transcript(source_url)
-        text = video_data["text"]
+        normalized_text = video_data["text"]
         source_title = video_data["title"]
-    elif is_web_url(text):
+        processing_meta = {
+            "source_type": "video",
+            "video_id": video_data.get("video_id"),
+            "transcript_status": video_data.get("transcript_status"),
+            "fallback_used": video_data.get("fallback_used"),
+            "reason": video_data.get("reason"),
+        }
+    elif normalized_text and is_web_url(normalized_text):
         source_type = "web"
-        source_url = text.strip()
+        source_url = normalized_text
         logger.info(f"Processing Web URL: {source_url}")
         web_data = extract_text_from_url(source_url)
-        text = web_data["text"]
+        normalized_text = web_data["text"]
         source_title = web_data["title"]
         
     # If image is provided and text is minimal, try to extract text from image via OCR
     ocr_text = ""
     if image_bytes:
-        source_type = "image" if not text.strip() else f"{source_type}+image"
+        source_type = "image" if not normalized_text else f"{source_type}+image"
         ocr_text = extract_text_from_image(image_bytes)
         logger.info(f"OCR extracted text: {ocr_text[:200] if ocr_text else '(none)'}")
     
     # Merge OCR text with input text
-    analysis_text = text.strip()
+    analysis_text = normalized_text
     if ocr_text:
         analysis_text = f"{analysis_text} {ocr_text}".strip()
     
     if not analysis_text:
-        return AnalyzeResponse(claims=[])
+        return AnalyzeResponse(claims=[], processing_meta=processing_meta)
     
     # Run text-only pipeline first
     text_only_data = _run_pipeline_for_text(
-        text.strip(), 
+        normalized_text,
         image_bytes=None, 
         source_type=source_type, 
         source_url=source_url, 
@@ -442,7 +481,7 @@ async def analyze(
     )
     
     # If we have image context, run the augmented pipeline too
-    if ocr_text and analysis_text != text.strip():
+    if ocr_text and analysis_text != normalized_text:
         augmented_data = _run_pipeline_for_text(
             analysis_text, 
             image_bytes=image_bytes, 
@@ -513,7 +552,7 @@ async def analyze(
             )
         )
         
-    return AnalyzeResponse(claims=claims_with_evidence)
+    return AnalyzeResponse(claims=claims_with_evidence, processing_meta=processing_meta)
 
 
 @router.get("/health")

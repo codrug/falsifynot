@@ -7,9 +7,10 @@ import { Video, Mic, ImageIcon } from "lucide-react"
 interface MediaViewerProps {
   hasVideo?: boolean
   hasAudio?: boolean
+  imageUrl?: string | null
 }
 
-export function MediaViewer({ hasVideo, hasAudio }: MediaViewerProps) {
+export function MediaViewer({ hasVideo, hasAudio, imageUrl }: MediaViewerProps) {
   return (
     <div className="space-y-4">
       {hasVideo && (
@@ -74,20 +75,17 @@ export function MediaViewer({ hasVideo, hasAudio }: MediaViewerProps) {
             <ImageIcon className="h-5 w-5 text-primary" />
             <h4 className="font-semibold text-card-foreground">Image Analysis</h4>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2].map((img) => (
-              <div
-                key={img}
-                className="aspect-square bg-muted/30 rounded-lg flex items-center justify-center transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer animate-fade-in"
-                style={{ animationDelay: `${img * 0.05}s` }}
-              >
-                <div className="text-center space-y-1">
-                  <ImageIcon className="h-8 w-8 mx-auto text-primary/50" />
-                  <p className="text-xs text-muted-foreground">Image {img}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {imageUrl ? (
+            <div className="rounded-lg overflow-hidden border border-border/60 bg-muted/20">
+              <img src={imageUrl} alt="Uploaded media" className="w-full max-h-[28rem] object-contain" />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-8 text-center space-y-2">
+              <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground/70" />
+              <p className="text-sm text-muted-foreground">Image preview unavailable for this claim.</p>
+              <p className="text-xs text-muted-foreground">Re-run analysis for this image to attach preview media.</p>
+            </div>
+          )}
         </Card>
       )}
     </div>

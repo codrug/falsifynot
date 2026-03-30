@@ -26,6 +26,7 @@ interface AnalyzeInput {
   sourceKind: InputKind
   sourceExtension?: string | null
   imageFile?: File | null
+  previewDataUrl?: string | null
 }
 
 const LOADING_STAGES = [
@@ -34,6 +35,7 @@ const LOADING_STAGES = [
   "Extracting claims",
   "Retrieving evidence",
   "Analyzing verdicts",
+  "Finalizing results",
 ]
 
 export default function UploadPage() {
@@ -45,6 +47,8 @@ export default function UploadPage() {
   const [loadingStage, setLoadingStage] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const analyzeAbortRef = useRef<AbortController | null>(null)
+  const ANALYSIS_ABORTED = "__ANALYSIS_ABORTED__"
 
   const clearLoadingInterval = () => {
     if (loadingIntervalRef.current) {
@@ -62,8 +66,20 @@ export default function UploadPage() {
   }
 
   useEffect(() => {
-    return () => clearLoadingInterval()
+    return () => {
+      clearLoadingInterval()
+      analyzeAbortRef.current?.abort()
+      analyzeAbortRef.current = null
+    }
   }, [])
+
+  const handleCancelAnalysis = () => {
+    analyzeAbortRef.current?.abort()
+    analyzeAbortRef.current = null
+    clearLoadingInterval()
+    setIsAnalyzing(false)
+    setErrorMessage("Analysis canceled.")
+  }
 
   const parseInputsFromFiles = async (inputFiles: File[]) => {
     const textInputs: AnalyzeInput[] = []
@@ -90,6 +106,7 @@ export default function UploadPage() {
       }
 
       if (isImage) {
+        const previewDataUrl = await fileToDataUrl(file)
         imageInputs.push({
           id: crypto.randomUUID(),
           content: "",
@@ -97,6 +114,7 @@ export default function UploadPage() {
           sourceKind: "image",
           sourceExtension: extension,
           imageFile: file,
+          previewDataUrl,
         })
         continue
       }
@@ -145,18 +163,40 @@ export default function UploadPage() {
     setIsAnalyzing(true)
     setErrorMessage(null)
     startLoadingStages()
+    const abortController = new AbortController()
+    analyzeAbortRef.current = abortController
 
     try {
       const analyses: TextAnalysis[] = await Promise.all(
         inputsToAnalyze.map(async (item) => {
-          const result = await analyzeContent(item.content, item.imageFile ?? null, {
-            sourceName: item.label,
-            sourceExtension: item.sourceExtension || undefined,
-          })
-          return {
-            textId: item.id,
-            inputText: item.content,
-            claims: result.claims,
+          try {
+            const result = await analyzeContent(item.content, item.imageFile ?? null, {
+              sourceName: item.label,
+              sourceExtension: item.sourceExtension || undefined,
+              signal: abortController.signal,
+            })
+            return {
+              textId: item.id,
+              inputText: item.content,
+              claims: result.claims,
+              error: null,
+              processingMeta: result.processing_meta ?? null,
+            }
+          } catch (error) {
+            if (error instanceof DOMException && error.name === "AbortError") {
+              throw new Error(ANALYSIS_ABORTED)
+            }
+            if (error instanceof Error && error.message.includes("aborted")) {
+              throw new Error(ANALYSIS_ABORTED)
+            }
+            const message = error instanceof Error ? error.message : "Analysis failed"
+            return {
+              textId: item.id,
+              inputText: item.content,
+              claims: [],
+              error: message,
+              processingMeta: null,
+            }
           }
         }),
       )
@@ -171,15 +211,23 @@ export default function UploadPage() {
             sourceInputKind: input?.sourceKind,
             sourceInputLabel: input?.label,
             sourceFileExtension: input?.sourceExtension ?? null,
+            sourcePreviewUrl: input?.previewDataUrl ?? null,
           }
         }),
       )
 
-      sessionStorage.setItem("falsifynot.inputTexts", JSON.stringify(inputsToAnalyze))
+      const persistableInputs = inputsToAnalyze.map(({ imageFile: _imageFile, ...rest }) => rest)
+
+      sessionStorage.setItem("falsifynot.inputTexts", JSON.stringify(persistableInputs))
       sessionStorage.setItem("falsifynot.analyses", JSON.stringify(analyses))
       sessionStorage.setItem("falsifynot.claims", JSON.stringify(flattenedClaims))
       router.push("/dashboard")
     } catch (error) {
+      if (error instanceof Error && error.message === ANALYSIS_ABORTED) {
+        setErrorMessage("Analysis canceled.")
+        return
+      }
+
       if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
         setErrorMessage(`Failed to reach the API at ${API_BASE_URL}. Is the backend running?`)
         return
@@ -188,6 +236,7 @@ export default function UploadPage() {
       const message = error instanceof Error ? error.message : "Failed to analyze content"
       setErrorMessage(message)
     } finally {
+      analyzeAbortRef.current = null
       clearLoadingInterval()
       setIsAnalyzing(false)
     }
@@ -196,6 +245,7 @@ export default function UploadPage() {
   const hasContent = files.length > 0 || textItems.length > 0 || urlItems.length > 0
   const imageFiles = files.filter((file) => isImageFile(file))
   const nonImageFiles = files.filter((file) => !isImageFile(file))
+  const loadingProgress = ((loadingStage + 1) / LOADING_STAGES.length) * 100
 
   return (
     <div className="min-h-screen bg-background">
@@ -324,12 +374,14 @@ export default function UploadPage() {
               <p className="text-sm text-muted-foreground">Dynamic pipeline loading from initialization to analysis</p>
             </div>
 
-            <div className="rounded-xl overflow-hidden border border-primary/20 bg-muted/30">
-              <img
-                src="/analysis-loader.gif"
-                alt="Analysis loading animation"
-                className="w-full h-44 object-cover"
-              />
+            <div className="space-y-2">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-right">{loadingProgress.toFixed(0)}% complete</p>
             </div>
 
             <div className="space-y-3">
@@ -348,6 +400,12 @@ export default function UploadPage() {
                 )
               })}
             </div>
+
+            <div className="flex justify-center">
+              <Button variant="outline" onClick={handleCancelAnalysis}>
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -365,4 +423,13 @@ function getFileExtension(fileName: string): string {
     return ""
   }
   return fileName.slice(index + 1).toLowerCase()
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "")
+    reader.onerror = () => reject(new Error("Failed to read image preview"))
+    reader.readAsDataURL(file)
+  })
 }

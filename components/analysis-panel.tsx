@@ -28,7 +28,8 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
   }
 
   const confidence = Math.max(0, Math.min(100, claim.confidence * 100))
-  const hasMedia = !!claim.visual_context?.ocr_text
+  const mediaImageUrl = claim.sourceInputKind === "image" ? (claim.sourcePreviewUrl ?? null) : null
+  const hasMedia = !!claim.visual_context?.ocr_text || !!mediaImageUrl
   const evidence = getNormalizedEvidence(claim)
   const vc = claim.visual_context
   const mc = claim.multimodal_contribution
@@ -310,7 +311,7 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
             </p>
           </Card>
         ) : (
-          <MediaViewer hasVideo={false} hasAudio={false} />
+          <MediaViewer hasVideo={false} hasAudio={false} imageUrl={mediaImageUrl} />
         )}
       </section>
     </div>

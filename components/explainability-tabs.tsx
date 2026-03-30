@@ -67,16 +67,6 @@ export function ExplainabilityTabs({ claim, hasOCR, hasVideo }: ExplainabilityTa
               </div>
             </div>
           </Card>
-
-          <Card className="p-6 space-y-4 transition-all duration-300 hover:shadow-lg animate-fade-in">
-            <h4 className="font-semibold text-card-foreground">Attention Context</h4>
-            <div className="aspect-video bg-muted/20 rounded-lg flex items-center justify-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent animate-pulse" />
-              <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest opacity-50">
-                Visual Context Maps Generated
-              </p>
-            </div>
-          </Card>
         </TabsContent>
 
         <TabsContent value="details" className="space-y-4">

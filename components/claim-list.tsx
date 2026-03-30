@@ -3,12 +3,13 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import type { StoredClaim } from "@/lib/api"
+import type { InputProcessingSummary, StoredClaim } from "@/lib/api"
 
 interface ClaimListProps {
   claims: StoredClaim[]
   allClaims: StoredClaim[]
   totalClaims: number
+  inputSummaries: InputProcessingSummary[]
   selectedClaimId: string | null
   setSelectedClaimId: (claimId: string) => void
   sourceTypeFilters: string[]
@@ -22,6 +23,7 @@ export function ClaimList({
   claims,
   allClaims,
   totalClaims,
+  inputSummaries,
   selectedClaimId,
   setSelectedClaimId,
   sourceTypeFilters,
@@ -54,6 +56,44 @@ export function ClaimList({
           Showing {claims.length} of {totalClaims} claim{totalClaims !== 1 ? "s" : ""}
         </p>
       </div>
+
+      {inputSummaries.length > 0 && (
+        <Card className="p-3 space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processed inputs</p>
+            <Badge variant="secondary">{inputSummaries.length}</Badge>
+          </div>
+          <div className="space-y-2 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
+            {inputSummaries.map((summary) => (
+              <div key={summary.id} className="rounded-md border border-border/60 px-2 py-2 space-y-1 bg-muted/20">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-card-foreground truncate">{summary.label}</p>
+                  <Badge variant={getSummaryVariant(summary.status)} className="text-[10px] uppercase">
+                    {getSummaryLabel(summary.status)}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="outline" className="text-[10px]">
+                    {labelSourceTag(summary.sourceKind)}
+                  </Badge>
+                  {normalizeFileTag(summary.sourceExtension) && (
+                    <Badge variant="outline" className="text-[10px] uppercase">
+                      .{normalizeFileTag(summary.sourceExtension)}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">
+                    {summary.claimsCount} claim{summary.claimsCount !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                {summary.errorMessage ? <p className="text-[10px] text-destructive line-clamp-2">{summary.errorMessage}</p> : null}
+                {!summary.errorMessage && summary.reasonMessage ? (
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">{summary.reasonMessage}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {(sourceTypeOptions.length > 0 || fileTypeOptions.length > 0) && (
         <Card className="p-3 space-y-3 animate-fade-in">
@@ -177,4 +217,18 @@ function labelSourceTag(tag: string): string {
 
 function normalizeFileTag(tag: string): string {
   return tag.replace(/^\./, "").trim().toLowerCase()
+}
+
+function getSummaryLabel(status: InputProcessingSummary["status"]): string {
+  if (status === "claims") return "Claims"
+  if (status === "no-claims") return "No claims"
+  if (status === "error") return "Failed"
+  return "Not found"
+}
+
+function getSummaryVariant(status: InputProcessingSummary["status"]): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "claims") return "default"
+  if (status === "no-claims") return "secondary"
+  if (status === "error") return "destructive"
+  return "outline"
 }

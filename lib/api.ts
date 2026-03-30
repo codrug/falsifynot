@@ -96,12 +96,21 @@ export interface ExtractedClaim {
 
 export interface AnalyzeResponse {
   claims: ExtractedClaim[]
+  processing_meta?: {
+    source_type?: string
+    video_id?: string
+    transcript_status?: string
+    fallback_used?: string | null
+    reason?: string | null
+  } | null
 }
 
 export interface TextAnalysis {
   textId: string
   inputText: string
   claims: ExtractedClaim[]
+  error?: string | null
+  processingMeta?: AnalyzeResponse["processing_meta"]
 }
 
 export interface StoredClaim extends ExtractedClaim {
@@ -110,11 +119,24 @@ export interface StoredClaim extends ExtractedClaim {
   sourceInputKind?: "text" | "url" | "file" | "image"
   sourceInputLabel?: string
   sourceFileExtension?: string | null
+  sourcePreviewUrl?: string | null
+}
+
+export interface InputProcessingSummary {
+  id: string
+  label: string
+  sourceKind: string
+  sourceExtension: string
+  claimsCount: number
+  status: "claims" | "no-claims" | "error" | "missing"
+  errorMessage?: string
+  reasonMessage?: string
 }
 
 export interface AnalyzeContentOptions {
   sourceName?: string
   sourceExtension?: string
+  signal?: AbortSignal
 }
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -129,7 +151,8 @@ export async function analyzeContent(
   options?: AnalyzeContentOptions,
 ): Promise<AnalyzeResponse> {
   const formData = new FormData()
-  formData.append("text", text)
+  const normalizedText = (text ?? "").trim()
+  formData.append("text", normalizedText)
   if (options?.sourceName) {
     formData.append("source_name", options.sourceName)
   }
@@ -143,6 +166,7 @@ export async function analyzeContent(
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: "POST",
     body: formData,
+    signal: options?.signal,
   })
 
   if (!response.ok) {

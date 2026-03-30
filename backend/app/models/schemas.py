@@ -119,3 +119,4 @@ class AnalyzeResponse(BaseModel):
     """Response model for claim extraction and evidence retrieval output."""
 
     claims: List[ExtractedClaim] = Field(..., description="Extracted claims with evidence")
+    processing_meta: Optional[Dict[str, Any]] = Field(None, description="Processing diagnostics and fallback metadata")
