@@ -2,11 +2,55 @@ import faiss
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import re
 from typing import List, Dict, Any, Optional
+import torch
 from sentence_transformers import SentenceTransformer
 from app.core import get_logger
 
 logger = get_logger(__name__)
+
+
+OPINION_MARKERS = (
+    "i think",
+    "i believe",
+    "in my opinion",
+    "i feel",
+    "maybe",
+    "probably",
+)
+
+VAGUE_MARKERS = (
+    "something",
+    "some people",
+    "many people",
+    "a lot",
+    "things",
+)
+
+
+def extract_keywords(text: str) -> List[str]:
+    words = re.findall(r"\b\w+\b", text.lower())
+    return [w for w in words if len(w) > 3]
+
+
+def _is_low_quality_claim(claim: str) -> bool:
+    normalized = " ".join(claim.lower().split())
+    if len(normalized.split()) < 5:
+        return True
+    if any(marker in normalized for marker in OPINION_MARKERS):
+        return True
+    if any(marker in normalized for marker in VAGUE_MARKERS):
+        return True
+    return False
+
+
+def _keyword_overlap_score(keywords: List[str], text: str) -> float:
+    if not keywords:
+        return 0.0
+    lower_text = text.lower()
+    matched = sum(1 for k in keywords if k in lower_text)
+    return matched / len(keywords)
 
 
 class RetrievalService:
@@ -17,7 +61,8 @@ class RetrievalService:
         index_path: str = "data/wiki_faiss.index",
         metadata_path: str = "data/wiki_corpus_metadata.csv",
         model_name: str = "BAAI/bge-small-en-v1.5",
-        top_k: int = 5,
+        top_k: int = 20,
+        similarity_threshold: float = 0.35,
         device: Optional[str] = None
     ):
         """Initialize retrieval service with FAISS index and metadata.
@@ -27,9 +72,11 @@ class RetrievalService:
             metadata_path: Path to CSV metadata file.
             model_name: SentenceTransformer model name for query encoding.
             top_k: Number of top results to return per query.
+            similarity_threshold: Minimum embedding similarity for candidates.
             device: Device to use ('cuda', 'cpu'). Auto-detects if None.
         """
         self.top_k = top_k
+        self.similarity_threshold = similarity_threshold
         self.index_path = index_path
         self.metadata_path = metadata_path
         
@@ -97,9 +144,14 @@ class RetrievalService:
         """
         if not self.ready or not query:
             return []
+
+        if _is_low_quality_claim(query):
+            logger.info("Skipping low-quality claim before retrieval: %s", query[:120])
+            return []
         
         try:
-            k = top_k or self.top_k
+            requested_k = top_k or self.top_k
+            candidate_k = max(requested_k, 20)
             
             # Encode query
             query_embedding = self.model.encode(
@@ -109,7 +161,7 @@ class RetrievalService:
             )
             query_embedding = np.asarray(query_embedding, dtype=np.float32)
 
-            search_k = min(k, self.index.ntotal)
+            search_k = min(candidate_k, self.index.ntotal)
             scores, indices = self.index.search(query_embedding, search_k)
 
             results = []
@@ -122,13 +174,33 @@ class RetrievalService:
                 # Combine page title + sentence
                 combined_text = f"[{page_title}] {row['text']}" if page_title else row["text"]
                 
+                embedding_score = float(score)
+                if embedding_score < self.similarity_threshold:
+                    continue
+
                 results.append({
-                    "score": float(score),
+                    "embedding_score": embedding_score,
                     "text": combined_text,
                     "page": page_title
                 })
 
-            return results
+            keywords = extract_keywords(query)
+            filtered = [
+                item for item in results
+                if any(k in item["text"].lower() for k in keywords)
+            ] if keywords else results
+
+            reranked = []
+            for item in filtered:
+                keyword_overlap = _keyword_overlap_score(keywords, item["text"])
+                hybrid_score = 0.7 * item["embedding_score"] + 0.3 * keyword_overlap
+                out = dict(item)
+                out["keyword_overlap"] = keyword_overlap
+                out["score"] = hybrid_score
+                reranked.append(out)
+
+            reranked.sort(key=lambda x: float(x.get("score") or 0.0), reverse=True)
+            return reranked[:requested_k]
         
         except Exception as e:
             logger.error(f"Error during retrieval: {e}")

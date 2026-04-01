@@ -2,6 +2,64 @@ from app.ml.text_loader import load_input, split_into_sentences
 import app.ml.claim_inference as claim_inference
 import app.ml.retriever as retriever_module
 import app.ml.verifier as verifier_module
+import re
+
+
+OPINION_MARKERS = (
+    "i think",
+    "i believe",
+    "in my opinion",
+    "i feel",
+    "maybe",
+    "probably",
+)
+
+VAGUE_MARKERS = (
+    "something",
+    "some people",
+    "many people",
+    "a lot",
+    "things",
+)
+
+SIMILARITY_THRESHOLD = 0.35
+DEFAULT_RETRIEVAL_TOP_K = 20
+
+
+def extract_keywords(text):
+    words = re.findall(r"\b\w+\b", text.lower())
+    return [w for w in words if len(w) > 3]
+
+
+def _is_low_quality_claim(claim):
+    normalized = " ".join(claim.lower().split())
+    if len(normalized.split()) < 5:
+        return True
+    if any(marker in normalized for marker in OPINION_MARKERS):
+        return True
+    if any(marker in normalized for marker in VAGUE_MARKERS):
+        return True
+    return False
+
+
+def _keyword_overlap_score(keywords, text):
+    if not keywords:
+        return 0.0
+    lower_text = text.lower()
+    matched = sum(1 for k in keywords if k in lower_text)
+    return matched / len(keywords)
+
+
+def _apply_keyword_filter(claim, retrieved_sentences):
+    keywords = extract_keywords(claim)
+    if not keywords:
+        return retrieved_sentences
+
+    filtered = [
+        s for s in retrieved_sentences
+        if any(k in str(s.get("text", "")).lower() for k in keywords)
+    ]
+    return filtered
 
 def extract_checkworthy_claims(input_data, threshold=0.6):
     """Extract check-worthy claims from input text.
@@ -61,7 +119,7 @@ def extract_checkworthy_claims(input_data, threshold=0.6):
     
     return results
 
-def retrieve_evidence(claim, top_k=5):
+def retrieve_evidence(claim, top_k=DEFAULT_RETRIEVAL_TOP_K):
     """Retrieve evidence for a claim from the corpus.
     
     Args:
@@ -70,6 +128,10 @@ def retrieve_evidence(claim, top_k=5):
     Returns:
         list: List of evidence with similarity scores
     """
+    if _is_low_quality_claim(claim):
+        print(f"[INFO] Skipping low-quality claim before retrieval: {claim[:100]}...")
+        return []
+
     if not retriever_module.model_loaded:
         retriever_module.load_retriever()
 
@@ -78,8 +140,29 @@ def retrieve_evidence(claim, top_k=5):
         return []
     
     try:
-        evidence = retriever_module.retrieve(claim, top_k=top_k)
-        return evidence
+        # Pull a larger candidate set, then aggressively filter/rerank.
+        candidate_k = max(top_k, DEFAULT_RETRIEVAL_TOP_K)
+        evidence = retriever_module.retrieve(claim, top_k=candidate_k)
+
+        # Keep lower-bound semantic matches (0.3-0.4 range), then filter lexical junk.
+        evidence = [ev for ev in evidence if float(ev.get("score") or 0.0) >= SIMILARITY_THRESHOLD]
+        evidence = _apply_keyword_filter(claim, evidence)
+
+        keywords = extract_keywords(claim)
+        reranked = []
+        for ev in evidence:
+            embedding_score = float(ev.get("score") or 0.0)
+            keyword_overlap = _keyword_overlap_score(keywords, str(ev.get("text", "")))
+            hybrid_score = 0.7 * embedding_score + 0.3 * keyword_overlap
+
+            ev_copy = dict(ev)
+            ev_copy["embedding_score"] = embedding_score
+            ev_copy["keyword_overlap"] = keyword_overlap
+            ev_copy["score"] = hybrid_score
+            reranked.append(ev_copy)
+
+        reranked.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
+        return reranked[:top_k]
     except Exception as e:
         print(f"[ERROR] Error retrieving evidence: {e}")
         return []
@@ -146,7 +229,7 @@ if __name__ == "__main__":
             # Retrieve evidence for all claims
             for c in claims:
                 if retriever_module.model_loaded:
-                    c['evidence'] = retrieve_evidence(c['sentence'], top_k=5)
+                    c['evidence'] = retrieve_evidence(c['sentence'], top_k=DEFAULT_RETRIEVAL_TOP_K)
             
             # Display results
             for idx, c in enumerate(claims, 1):

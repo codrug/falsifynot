@@ -53,7 +53,7 @@ def load_retriever():
         print(f"[ERROR] Failed to initialize retriever: {e}")
 
 
-def retrieve(query, top_k=5):
+def retrieve(query, top_k=20):
     if not model_loaded:
         load_retriever()
         

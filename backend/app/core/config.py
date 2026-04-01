@@ -29,13 +29,14 @@ class Settings(BaseSettings):
 
     # ML Settings - Claim Extraction
     CLAIM_MODEL_PATH: str = "models/claim_extractor"
-    CLAIM_CONFIDENCE_THRESHOLD: float = 0.5
+    CLAIM_CONFIDENCE_THRESHOLD: float = 0.8
+    CLAIM_TOP_N: int = 3
     
     # ML Settings - Retrieval
     RETRIEVAL_INDEX_PATH: str = "data/wiki_faiss.index"
     RETRIEVAL_METADATA_PATH: str = "data/wiki_corpus_metadata.csv"
     RETRIEVAL_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
-    RETRIEVAL_TOP_K: int = 5
+    RETRIEVAL_TOP_K: int = 20
     RETRIEVAL_DEVICE: str = "auto"  # "auto", "cuda", or "cpu"
 
     # ML Settings - Verification

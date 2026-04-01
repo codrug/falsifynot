@@ -95,6 +95,11 @@ BOILERPLATE_PATTERNS = (
     "download app",
 )
 
+LOW_SIMILARITY_WARNING_THRESHOLD = 0.45
+LOW_VERDICT_CONFIDENCE_WARNING_THRESHOLD = 0.45
+FACTUAL_BOOST_MARKERS = ("percent", "increase", "million", "billion")
+NON_FACTUAL_CONFIDENCE_PENALTY = 0.1
+
 
 def simplify_claim(claim: str) -> str:
     simplified = claim.strip()
@@ -185,6 +190,37 @@ def is_claim_analyst_worthy(claim: str) -> bool:
     return has_numeric_signal(claim) or has_factual_structure(claim)
 
 
+def is_valid_claim(text: str) -> bool:
+    normalized = " ".join((text or "").lower().split())
+    if len(normalized.split()) < 6:
+        return False
+    if any(
+        phrase in normalized
+        for phrase in ("i think", "we must", "should", "i believe", "in my opinion", "we need to")
+    ):
+        return False
+    if any(word in normalized for word in ("thing", "something", "stuff")):
+        return False
+    return True
+
+
+def factual_score(text: str) -> float:
+    score = 0.0
+    lower_text = (text or "").lower()
+    if any(char.isdigit() for char in text):
+        score += 0.2
+    if any(word in lower_text for word in FACTUAL_BOOST_MARKERS):
+        score += 0.2
+    return score
+
+
+def has_factual_signal(text: str) -> bool:
+    lower_text = (text or "").lower()
+    return any(char.isdigit() for char in text) or any(
+        word in lower_text for word in ("percent", "million", "billion", "increased", "decreased")
+    )
+
+
 def highlight_overlap(claim: str, evidence: str) -> list[str]:
     claim_words = _tokenize(claim) - STOPWORDS
     evidence_words = _tokenize(evidence) - STOPWORDS
@@ -242,14 +278,46 @@ def _run_pipeline_for_text(
         if raw_claims:
             logger.info("Using fallback claim generation (%s candidate(s)) for %s input.", len(raw_claims), source_type)
     
-    claims_data = []
-    
+    claim_candidates = []
+    top_n_claims = max(1, int(getattr(settings, "CLAIM_TOP_N", 3)))
+
     for rc in raw_claims:
         claim_text = rc["sentence"]
-        confidence = rc["confidence"]
-        claim_type = classify_claim_type(claim_text)
+        model_confidence = float(rc.get("confidence") or 0.0)
+
+        if not is_valid_claim(claim_text):
+            logger.warning(
+                "Potential wrong classification: invalid claim passed extractor | confidence=%.4f | source=%s | claim=%s",
+                model_confidence,
+                source_type,
+                claim_text[:160],
+            )
+            continue
+
+        boosted_confidence = min(1.0, model_confidence + factual_score(claim_text))
+        if not has_factual_signal(claim_text):
+            boosted_confidence = max(0.0, boosted_confidence - NON_FACTUAL_CONFIDENCE_PENALTY)
+
+        if boosted_confidence < settings.CLAIM_CONFIDENCE_THRESHOLD:
+            logger.info(
+                "Skipping low-confidence claim before retrieval | model_conf=%.4f | boosted_conf=%.4f | threshold=%.2f | source=%s | claim=%s",
+                model_confidence,
+                boosted_confidence,
+                settings.CLAIM_CONFIDENCE_THRESHOLD,
+                source_type,
+                claim_text[:160],
+            )
+            continue
 
         if not is_claim_analyst_worthy(claim_text):
+            # Claim extractor surfaced this sentence, but heuristics reject it as non-factual.
+            # Keep an explicit failure log to diagnose wrong check-worthiness classifications.
+            logger.warning(
+                "Potential wrong classification: extractor accepted low-fact claim | confidence=%.4f | source=%s | claim=%s",
+                model_confidence,
+                source_type,
+                claim_text[:160],
+            )
             # Keep borderline claims for URL/video sources when extractor found very few options.
             # This prevents title-only fallback text from always producing empty results.
             should_keep_borderline = (
@@ -261,11 +329,54 @@ def _run_pipeline_for_text(
                 logger.info("Discarding low-fact claim: %s", claim_text[:120])
                 continue
             logger.info("Keeping borderline URL-derived claim: %s", claim_text[:120])
+
+        claim_candidates.append(
+            {
+                "claim_text": claim_text,
+                "model_confidence": model_confidence,
+                "confidence": boosted_confidence,
+                "claim_type": classify_claim_type(claim_text),
+            }
+        )
+
+    claim_candidates.sort(key=lambda item: float(item.get("confidence") or 0.0), reverse=True)
+    if len(claim_candidates) > top_n_claims:
+        logger.info(
+            "Keeping top-%s claims for retrieval (from %s candidates) | source=%s",
+            top_n_claims,
+            len(claim_candidates),
+            source_type,
+        )
+    selected_claims = claim_candidates[:top_n_claims]
+
+    claims_data = []
+
+    for selected in selected_claims:
+        claim_text = selected["claim_text"]
+        confidence = selected["confidence"]
+        claim_type = selected["claim_type"]
         
         # Retrieve Evidence
         query = build_retrieval_query(claim_text)
-        evidence_list = retrieve_evidence(query, top_k=5)
+        evidence_list = retrieve_evidence(query, top_k=settings.RETRIEVAL_TOP_K)
         evidence_list = filter_evidence(evidence_list)
+
+        if not evidence_list:
+            logger.warning(
+                "No evidence found for claim | source=%s | top_k=%s | claim=%s",
+                source_type,
+                settings.RETRIEVAL_TOP_K,
+                claim_text[:160],
+            )
+        else:
+            max_retrieval_score = max(float(ev.get("score") or 0.0) for ev in evidence_list)
+            if max_retrieval_score < LOW_SIMILARITY_WARNING_THRESHOLD:
+                logger.warning(
+                    "Low similarity retrieval for claim | max_score=%.4f | source=%s | claim=%s",
+                    max_retrieval_score,
+                    source_type,
+                    claim_text[:160],
+                )
         
         # Verify + lightweight XAI features
         evidence_results = []
@@ -324,6 +435,14 @@ def _run_pipeline_for_text(
             best_verdict = "SUPPORTS"
         elif has_refuting:
             best_verdict = "REFUTES"
+
+        if evidence_list and best_verdict == "NEUTRAL" and best_verdict_conf < LOW_VERDICT_CONFIDENCE_WARNING_THRESHOLD:
+            logger.warning(
+                "Wrong classification risk: no confident verdict despite retrieved evidence | best_conf=%.4f | source=%s | claim=%s",
+                best_verdict_conf,
+                source_type,
+                claim_text[:160],
+            )
                 
         # Build provenance graph
         provenance_nodes = [
