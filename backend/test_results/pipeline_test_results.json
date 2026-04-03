@@ -1,0 +1,148 @@
+[
+    {
+        "category": "1. Simple factual claims",
+        "input": "Water boils at 100 degrees Celsius at sea level.",
+        "description": "A well-known factual claim.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": [
+            {
+                "text": "Water boils at 100 degrees Celsius at sea level.",
+                "confidence": 1.0,
+                "verdict": "REFUTES",
+                "top_evidence": [
+                    {
+                        "text": "[Kumanovska_Banja] Analysis proved that the water is Alkaline earth water , with temperature of 28 degrees Celsius and 2.5 liters flow per second .",
+                        "score": 0.6977543818950653,
+                        "verdict": "REFUTES"
+                    },
+                    {
+                        "text": "[Haburugala] Typical day has the temperature around 26 degrees Celsius .",
+                        "score": 0.5915754210948944,
+                        "verdict": "REFUTES"
+                    }
+                ],
+                "explanation": "Claim classified as REFUTES with 1.00 confidence. Best matching evidence (score: 0.70) REFUTES it."
+            }
+        ]
+    },
+    {
+        "category": "2. Misleading or false claims",
+        "input": "Drinking bleach cures all viral infections immediately including the flu.",
+        "description": "A dangerous, provably false claim.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": []
+    },
+    {
+        "category": "3. Opinion vs factual statements",
+        "input": "In my opinion, chocolate ice cream is the best dessert, but it is a fact that it contains sugar.",
+        "description": "Mix of opinion (should be extracted with low confidence/ignored) and weak fact.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": []
+    },
+    {
+        "category": "4. Noisy or weak claims",
+        "input": "Stuff happened yesterday near the place and some guys saw things going down really fast.",
+        "description": "Extremely vague, no specific entities or strong assertions.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": []
+    },
+    {
+        "category": "5. Web article input",
+        "input": "https://en.wikipedia.org/wiki/Apollo_11",
+        "description": "An established factual web article.",
+        "processing_meta": {
+            "source_type": "web"
+        },
+        "extracted_claims_summary": [
+            {
+                "text": "Apollo 11 was the culmination of theSpace Race, a geopolitical competition between the United States and theSoviet Unionrooted inCold Warrivalry.",
+                "confidence": 1.0,
+                "verdict": "SUPPORTS",
+                "top_evidence": [
+                    {
+                        "text": "[Project_Mercury_-LRB-album-RRB-] The title is derived from the 1959 United States human spaceflight of the same name .",
+                        "score": 0.5418860946382794,
+                        "verdict": "NEUTRAL"
+                    },
+                    {
+                        "text": "[The_Blue_Marble] The Blue Marble is an image of the Earth made on December 7 , 1972 , by the crew of the Apollo 17 spacecraft at a distance of about 29000 km from the surface .",
+                        "score": 0.4850429492337363,
+                        "verdict": "NEUTRAL"
+                    }
+                ],
+                "explanation": "Claim classified as SUPPORTS with 1.00 confidence. Best matching evidence (score: 0.54) NEUTRAL it."
+            },
+            {
+                "text": "It fulfilled a national goal set by PresidentJohn F. Kennedyin May 1961, who hadchallengedthe United States to land a man on the Moon and return him safely before the end of the decade.",
+                "confidence": 1.0,
+                "verdict": "REFUTES",
+                "top_evidence": [
+                    {
+                        "text": "[The_Mercury_Men] Though it is set in the mid-1970s , shortly after the Apollo moon landings .",
+                        "score": 0.5289058174405779,
+                        "verdict": "NEUTRAL"
+                    },
+                    {
+                        "text": "[Project_Mercury_-LRB-album-RRB-] The title is derived from the 1959 United States human spaceflight of the same name .",
+                        "score": 0.5264974330152784,
+                        "verdict": "NEUTRAL"
+                    }
+                ],
+                "explanation": "Claim classified as REFUTES with 1.00 confidence. Best matching evidence (score: 0.53) NEUTRAL it."
+            },
+            {
+                "text": "The Soviet Union, despite early leads in spaceflight, was unable to match the Saturn V rocket, and its uncrewed lunar probeLuna 15crashed on the Moon on July 21, while Neil Armstrong and Buzz Aldrin were still on the lunar surface.",
+                "confidence": 1.0,
+                "verdict": "SUPPORTS",
+                "top_evidence": [
+                    {
+                        "text": "[Kosmos_212] Both spacecraft landed on Soviet territory .",
+                        "score": 0.5249106672677126,
+                        "verdict": "REFUTES"
+                    },
+                    {
+                        "text": "[A102] A-102 ( SA-7 ) , the 1964 second Saturn rocket launch to carry a boilerplate Apollo spacecraft",
+                        "score": 0.5171171713959086,
+                        "verdict": "NEUTRAL"
+                    }
+                ],
+                "explanation": "Claim classified as SUPPORTS with 1.00 confidence. Best matching evidence (score: 0.52) REFUTES it."
+            }
+        ]
+    },
+    {
+        "category": "6. OCR-extracted image text",
+        "input": "BREAKING NEWS!!! AL1ENS H4VE LANDED IN N3W YORK 100% REAL",
+        "description": "Text that resembles messy/spammy OCR extractions.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": []
+    },
+    {
+        "category": "7. Video transcript input",
+        "input": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        "description": "Me at the zoo - the first YouTube video.",
+        "processing_meta": {
+            "source_type": "video"
+        },
+        "extracted_claims_summary": []
+    },
+    {
+        "category": "8. Edge cases",
+        "input": "Yes. No. maybe. 123",
+        "description": "Very short, ambiguous inputs.",
+        "processing_meta": {
+            "source_type": "text"
+        },
+        "extracted_claims_summary": []
+    }
+]

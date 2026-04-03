@@ -2,6 +2,9 @@
 
 FastAPI-based backend for the FalsifyNot fact-checking application.
 
+CheckThat! dataset link:
+``` https://gitlab.com/checkthat_lab/clef2024-checkthat-lab/-/blob/main/task1/data/CT24_checkworthy_english.zip ```
+
 ## API Documentation
 
 ### Endpoints
