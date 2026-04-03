@@ -4,7 +4,7 @@
 
 # FalsifyNot
 
-### **AI-Powered Multimodal Fake News Verification**
+### **A Fake News Verification System**
 
 </div>
 
