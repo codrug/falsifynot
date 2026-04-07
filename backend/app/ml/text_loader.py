@@ -9,16 +9,7 @@ import PyPDF2
 from nltk.tokenize import sent_tokenize
 import ssl
 
-BOILERPLATE_PATTERNS = (
-    "all rights reserved",
-    "sign in",
-    "sign up",
-    "already a registered user",
-    "continue to engage",
-    "privacy policy",
-    "cookie policy",
-    "terms of service",
-)
+from app.core import settings
 
 
 def is_boilerplate_sentence(sentence):
@@ -27,7 +18,7 @@ def is_boilerplate_sentence(sentence):
         return True
     if len(normalized.split()) <= 4:
         return True
-    if any(pattern in normalized for pattern in BOILERPLATE_PATTERNS):
+    if any(pattern in normalized for pattern in settings.BOILERPLATE_PATTERNS):
         return True
     if normalized.startswith(("read more", "click here", "watch now", "share this")):
         return True
@@ -138,6 +129,9 @@ def split_into_sentences(text):
     """
     if not text or not text.strip():
         return []
+    
+    # Normalize OCR / newline-separated input by treating line breaks as sentence boundaries.
+    text = re.sub(r"[\r\n]+", ". ", text)
     
     try:
         sentences = sent_tokenize(text)

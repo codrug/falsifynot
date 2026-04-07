@@ -3,27 +3,11 @@ import app.ml.claim_inference as claim_inference
 import app.ml.retriever as retriever_module
 import app.ml.verifier as verifier_module
 import re
+import logging
 
+from app.core import settings
 
-OPINION_MARKERS = (
-    "i think",
-    "i believe",
-    "in my opinion",
-    "i feel",
-    "maybe",
-    "probably",
-)
-
-VAGUE_MARKERS = (
-    "something",
-    "some people",
-    "many people",
-    "a lot",
-    "things",
-)
-
-SIMILARITY_THRESHOLD = 0.35
-DEFAULT_RETRIEVAL_TOP_K = 20
+logger = logging.getLogger(__name__)
 
 
 def extract_keywords(text):
@@ -35,9 +19,9 @@ def _is_low_quality_claim(claim):
     normalized = " ".join(claim.lower().split())
     if len(normalized.split()) < 5:
         return True
-    if any(marker in normalized for marker in OPINION_MARKERS):
+    if any(marker in normalized for marker in settings.OPINION_MARKERS):
         return True
-    if any(marker in normalized for marker in VAGUE_MARKERS):
+    if any(marker in normalized for marker in settings.VAGUE_MARKERS):
         return True
     return False
 
@@ -61,6 +45,7 @@ def _apply_keyword_filter(claim, retrieved_sentences):
     ]
     return filtered
 
+
 def extract_checkworthy_claims(input_data, threshold=0.6):
     """Extract check-worthy claims from input text.
     
@@ -80,26 +65,26 @@ def extract_checkworthy_claims(input_data, threshold=0.6):
     try:
         text = load_input(input_data)
     except FileNotFoundError as e:
-        print(f"[ERROR] File not found: {e}")
+        logger.error(f"File not found: {e}")
         return []
     except ValueError as e:
-        print(f"[ERROR] Error: {e}")
+        logger.error(f"Error: {e}")
         return []
     except Exception as e:
-        print(f"[ERROR] Unexpected error loading input: {e}")
+        logger.error(f"Unexpected error loading input: {e}")
         return []
     
     if not text or not text.strip():
-        print("[ERROR] Input text is empty.")
+        logger.error("Input text is empty.")
         return []
     
     sentences = split_into_sentences(text)
     
     if not sentences:
-        print("[ERROR] No sentences found in input.")
+        logger.error("No sentences found in input.")
         return []
     
-    print(f"\nProcessing {len(sentences)} sentences...\n")
+    logger.info(f"Processing {len(sentences)} sentences...")
     
     results = []
     for i, sentence in enumerate(sentences, 1):
@@ -110,16 +95,16 @@ def extract_checkworthy_claims(input_data, threshold=0.6):
                     "sentence": sentence,
                     "confidence": conf
                 })
-                print(f"[{i}/{len(sentences)}] [OK] Check-worthy ({conf:.4f}): {sentence[:80]}...")
+                logger.info(f"[{i}/{len(sentences)}] Check-worthy ({conf:.4f}): {sentence[:80]}...")
             else:
-                print(f"[{i}/{len(sentences)}] [NO] Not check-worthy ({conf:.4f}): {sentence[:80]}...")
+                logger.debug(f"[{i}/{len(sentences)}] Not check-worthy ({conf:.4f}): {sentence[:80]}...")
         except Exception as e:
-            print(f"[{i}/{len(sentences)}] Error processing sentence: {e}")
+            logger.error(f"[{i}/{len(sentences)}] Error processing sentence: {e}")
             continue
     
     return results
 
-def retrieve_evidence(claim, top_k=DEFAULT_RETRIEVAL_TOP_K):
+def retrieve_evidence(claim, top_k=settings.RETRIEVAL_TOP_K):
     """Retrieve evidence for a claim from the corpus.
     
     Args:
@@ -129,23 +114,23 @@ def retrieve_evidence(claim, top_k=DEFAULT_RETRIEVAL_TOP_K):
         list: List of evidence with similarity scores
     """
     if _is_low_quality_claim(claim):
-        print(f"[INFO] Skipping low-quality claim before retrieval: {claim[:100]}...")
+        logger.info(f"Skipping low-quality claim before retrieval: {claim[:100]}...")
         return []
 
     if not retriever_module.model_loaded:
         retriever_module.load_retriever()
 
     if not retriever_module.model_loaded:
-        print("[ERROR] Retrieval system not loaded.")
+        logger.error("Retrieval system not loaded.")
         return []
     
     try:
         # Pull a larger candidate set, then aggressively filter/rerank.
-        candidate_k = max(top_k, DEFAULT_RETRIEVAL_TOP_K)
+        candidate_k = max(top_k, settings.RETRIEVAL_TOP_K)
         evidence = retriever_module.retrieve(claim, top_k=candidate_k)
 
         # Keep lower-bound semantic matches (0.3-0.4 range), then filter lexical junk.
-        evidence = [ev for ev in evidence if float(ev.get("score") or 0.0) >= SIMILARITY_THRESHOLD]
+        evidence = [ev for ev in evidence if float(ev.get("score") or 0.0) >= settings.SIMILARITY_THRESHOLD]
         evidence = _apply_keyword_filter(claim, evidence)
 
         keywords = extract_keywords(claim)
@@ -164,7 +149,7 @@ def retrieve_evidence(claim, top_k=DEFAULT_RETRIEVAL_TOP_K):
         reranked.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
         return reranked[:top_k]
     except Exception as e:
-        print(f"[ERROR] Error retrieving evidence: {e}")
+        logger.error(f"Error retrieving evidence: {e}")
         return []
 
 def save_results_to_file(claims, filename="results.txt"):
@@ -190,85 +175,7 @@ def save_results_to_file(claims, filename="results.txt"):
                 
                 f.write("\n" + "=" * 70 + "\n\n")
         
-        print(f"\n[OK] Results saved to {filename}")
+        logger.info(f"Results saved to {filename}")
     except Exception as e:
-        print(f"[ERROR] Error saving results: {e}")
+        logger.error(f"Error saving results: {e}")
 
-if __name__ == "__main__":
-    print("=" * 70)
-    print("Claim Detection & Evidence Retrieval & Verification Pipeline")
-    print("=" * 70)
-    
-    if not claim_inference.model_loaded:
-        print("[ERROR] Claim detection model failed to load. Cannot proceed.")
-        exit(1)
-    
-    if not retriever_module.model_loaded:
-        print("[WARN] Warning: Retrieval system not available. Evidence retrieval will be skipped.")
-    
-    if not verifier_module.model_loaded:
-        print("[WARN] Warning: Verification system not available. NLI verification will be skipped.")
-    
-    try:
-        input_data = input("\nEnter text or file path (e.g., 'text.txt', 'text.pdf', or raw text):\n> ").strip()
-        
-        if not input_data:
-            print("[ERROR] No input provided.")
-            exit(1)
-        
-        threshold = 0.8
-        print(f"\nUsing confidence threshold: {threshold}")
-        
-        claims = extract_checkworthy_claims(input_data, threshold=threshold)
-        
-        print("\n" + "=" * 70)
-        print(f"Results: Found {len(claims)} check-worthy claim(s)")
-        print("=" * 70)
-        
-        if claims:
-            # Retrieve evidence for all claims
-            for c in claims:
-                if retriever_module.model_loaded:
-                    c['evidence'] = retrieve_evidence(c['sentence'], top_k=DEFAULT_RETRIEVAL_TOP_K)
-            
-            # Display results
-            for idx, c in enumerate(claims, 1):
-                print(f"\n{'='*70}")
-                print(f"[Claim {idx}]")
-                print(f"Text: {c['sentence']}")
-                print(f"Confidence: {c['confidence']:.4f}")
-                
-                if retriever_module.model_loaded and 'evidence' in c:
-                    evidence = c['evidence']
-                    if evidence and verifier_module.model_loaded:
-                        print(f"\n[Evidence & Verification - Top {len(evidence)}]")
-                        for evi_idx, evi in enumerate(evidence, 1):
-                            print(f"\n  {evi_idx}. [Similarity: {evi['score']:.4f}]")
-                            print(f"     {evi['text'][:300]}...")
-                            
-                            # Verify claim against this evidence
-                            verdict_result = verifier_module.verify_claim(c['sentence'], evi['text'])
-                            print(f"     Verdict: {verdict_result['verdict']} (Confidence: {verdict_result['confidence']:.2f})")
-                    elif evidence:
-                        print(f"\n[Evidence - Top {len(evidence)}]")
-                        for evi_idx, evi in enumerate(evidence, 1):
-                            print(f"\n  {evi_idx}. [Similarity: {evi['score']:.4f}]")
-                            print(f"     {evi['text'][:300]}...")
-                    else:
-                        print("\n[No evidence found]")
-            
-            # Offer to save results
-            '''try:
-                save = input("\n\nSave results to file? (y/n): ").strip().lower()
-            except EOFError:
-                save = 'n'
-            if save == 'y':
-                filename = input("Enter filename (default: results.txt): ").strip() or "results.txt"
-                save_results_to_file(claims, filename)'''
-        else:
-            print("\nNo check-worthy claims found.")
-            
-    except KeyboardInterrupt:
-        print("\n\nExecution cancelled by user.")
-    except Exception as e:
-        print(f"[ERROR] Fatal error: {e}")

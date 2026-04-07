@@ -1,6 +1,6 @@
 """
 Web Scraper Service for extracting article text from URLs.
-Uses newspaper3k for clean article extraction with BeautifulSoup fallback.
+Uses BeautifulSoup for article extraction.
 """
 
 import logging
@@ -51,30 +51,7 @@ def extract_text_from_url(url: str) -> dict:
         "source_url": url,
     }
 
-    # Try newspaper3k first (best for news articles)
-    try:
-        from newspaper import Article
-
-        article = Article(url)
-        article.download()
-        article.parse()
-
-        result["title"] = article.title or ""
-        result["text"] = article.text or ""
-        result["authors"] = article.authors or []
-
-        if result["text"].strip():
-            logger.info(
-                f"newspaper3k extracted {len(result['text'])} chars from {url}"
-            )
-            return result
-
-    except ImportError:
-        logger.warning("newspaper3k not installed, falling back to BeautifulSoup.")
-    except Exception as e:
-        logger.warning(f"newspaper3k failed for {url}: {e}. Trying BeautifulSoup.")
-
-    # Fallback: BeautifulSoup + requests
+    # Use BeautifulSoup + requests for extraction
     try:
         import requests
         from bs4 import BeautifulSoup
@@ -116,7 +93,7 @@ def extract_text_from_url(url: str) -> dict:
             logger.warning(f"No meaningful text extracted from {url}")
 
     except ImportError:
-        logger.error("Neither newspaper3k nor beautifulsoup4 is installed.")
+        logger.error("Required web scraping libraries are not installed.")
     except Exception as e:
         logger.error(f"Web scraping failed for {url}: {e}")
 

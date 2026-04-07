@@ -50,16 +50,24 @@ def verify_batch(pairs):
         # Format: premise is the evidence, hypothesis is the claim
         texts = [f"premise: {ev} hypothesis: {cl}" for cl, ev in pairs]
         
-        # Use batch processing
-        batch_results = nli(texts, batch_size=8)
+        # Use batch processing and return probabilities for all labels.
+        batch_results = nli(texts, batch_size=8, return_all_scores=True)
         
-        return [
-            {
-                "verdict": res["label"].upper(),
-                "confidence": res["score"]
-            }
-            for res in batch_results
-        ]
+        normalized_results = []
+        for res in batch_results:
+            label_scores = {item["label"].upper(): item["score"] for item in res}
+            support_score = float(label_scores.get("ENTAILMENT", 0.0))
+            refute_score = float(label_scores.get("CONTRADICTION", 0.0))
+            neutral_score = float(label_scores.get("NEUTRAL", 0.0))
+            best_label = max(label_scores, key=label_scores.get)
+            normalized_results.append({
+                "verdict": best_label,
+                "confidence": float(label_scores.get(best_label, 0.0)),
+                "support_score": support_score,
+                "refute_score": refute_score,
+                "neutral_score": neutral_score,
+            })
+        return normalized_results
     except Exception as e:
         print(f"[ERROR] Batch verification error: {e}")
         return [{"verdict": "ERROR", "confidence": 0.0}] * len(pairs)

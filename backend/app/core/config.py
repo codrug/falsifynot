@@ -42,6 +42,20 @@ class Settings(BaseSettings):
     # ML Settings - Verification
     VERIFIER_MODEL_NAME: str = "MoritzLaurer/deberta-v3-base-mnli-fever-anli"
     
+    # Pipeline Thresholds
+    LOW_SIMILARITY_WARNING_THRESHOLD: float = 0.45
+    LOW_VERDICT_CONFIDENCE_WARNING_THRESHOLD: float = 0.45
+    SIMILARITY_THRESHOLD: float = 0.35
+    NON_FACTUAL_CONFIDENCE_PENALTY: float = 0.1
+    FACTUAL_BOOST_MARKERS: List[str] = ["percent", "increase", "million", "billion"]
+    BAD_EVIDENCE_KEYWORDS: List[str] = ["disambiguation", "may refer to", "genus"]
+    OPINION_MARKERS: List[str] = ["i think", "i believe", "in my opinion", "we must", "we should", "i feel", "probably", "maybe"]
+    VAGUE_MARKERS: List[str] = ["something", "some people", "many people", "a lot", "things"]
+    CAUSAL_MARKERS: List[str] = ["caused", "causes", "cause", "leads to", "led to", "results in", "resulted in", "because", "due to", "driven by", "impact", "affect"]
+    ASSERTION_MARKERS: List[str] = [" is ", " are ", " was ", " were ", " has ", " have ", " had "]
+    BOILERPLATE_PATTERNS: List[str] = ["all rights reserved", "sign in", "sign up", "log in", "already a registered user", "continue to engage", "subscribe", "cookie policy", "privacy policy", "terms of service", "download app"]
+    RETRIEVAL_PREFIXES: List[str] = ["studies show that", "study shows that", "research shows that", "it is claimed that", "according to experts"]
+    
     @model_validator(mode="after")
     def parse_cors_origins(self):
         """Parse CORS_ORIGINS if it's a string."""

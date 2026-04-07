@@ -31,6 +31,12 @@ class ProvenanceEdge(BaseModel):
     label: Optional[str] = None
 
 
+class Provenance(BaseModel):
+    """Provenance graph data."""
+    nodes: List[ProvenanceNode]
+    edges: List[ProvenanceEdge]
+
+
 class TextHighlight(BaseModel):
     """A highlighted snippet of text for explainability."""
     text: str
@@ -99,7 +105,7 @@ class ExtractedClaim(BaseModel):
     claim_type: Optional[str] = Field(None, description="Claim type: Statistical, Causal, Opinion")
     verdict: Optional[str] = Field(None, description="Analysis verdict")
     evidence: List[EvidenceResult] = Field(default_factory=list, description="Retrieved evidence")
-    provenance: Optional[Dict[str, Any]] = Field(None, description="Provenance graph data")
+    provenance: Optional[Provenance] = Field(None, description="Provenance graph data")
     explainability: Optional[ExplainabilityData] = Field(None, description="Explainability data")
     # Multimodal fields
     visual_context: Optional[VisualContext] = Field(None, description="Visual context from uploaded image")

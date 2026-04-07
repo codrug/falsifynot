@@ -222,9 +222,18 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
         )}
       </section>
 
+      {/* Explainability Section */}
+      <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.32s" }}>
+        <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+          <Lightbulb className="h-5 w-5" />
+          Explainability
+        </h3>
+        <ExplainabilityTabs claim={claim} />
+      </section>
+
       {/* External Evidence Section */}
       {ext && (ext.web_sources.length > 0 || ext.video_sources.length > 0) && (
-        <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.32s" }}>
+        <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.35s" }}>
           <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Globe className="h-5 w-5 text-chart-5" />
             External Evidence
@@ -279,21 +288,12 @@ export function AnalysisPanel({ claim, claimIndex }: AnalysisPanelProps) {
       )}
 
       {/* Provenance Section */}
-      <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.35s" }}>
+      <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
         <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
           <GitFork className="h-5 w-5" />
           Provenance Graph
         </h3>
         <ProvenanceGraph claim={claim} />
-      </section>
-
-      {/* Explainability Section */}
-      <section className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
-        <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-          <Lightbulb className="h-5 w-5" />
-          Explainability
-        </h3>
-        <ExplainabilityTabs claim={claim} />
       </section>
 
       {/* Media Section */}
