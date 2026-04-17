@@ -19,16 +19,22 @@ class EvidenceResult(BaseModel):
 class ProvenanceNode(BaseModel):
     """A node in the provenance graph."""
     id: str
-    label: str
-    type: str  # e.g., "source", "process", "evidence"
-    metadata: Optional[Dict[str, Any]] = None
+    type: str  # e.g., "claim", "evidence", "source"
+    text: Optional[str] = None  # Text content of the node
+    source: Optional[str] = None  # Source information (e.g., page title, URL)
+    score: Optional[float] = None  # Relevance or confidence score
+    label: Optional[str] = None  # Display label
+    metadata: Optional[Dict[str, Any]] = None  # Additional metadata
 
 
 class ProvenanceEdge(BaseModel):
     """An edge in the provenance graph."""
-    source: str
-    target: str
-    label: Optional[str] = None
+    from_node: str = Field(..., alias="from", description="Source node ID")
+    to_node: str = Field(..., alias="to", description="Target node ID")
+    weight: Optional[float] = None  # Edge weight/confidence
+
+    class Config:
+        populate_by_name = True
 
 
 class Provenance(BaseModel):

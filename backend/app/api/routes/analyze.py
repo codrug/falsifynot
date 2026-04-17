@@ -31,6 +31,7 @@ STOPWORDS = {
 def _run_pipeline_for_text(
     text: str,
     image_bytes: Optional[bytes] = None,
+    ocr_text: Optional[str] = None,
     source_type: str = "text",
     source_url: Optional[str] = None,
     source_title: Optional[str] = None,
@@ -44,6 +45,7 @@ def _run_pipeline_for_text(
     return AnalysisService.extract_claims_from_text(
         text=text,
         image_bytes=image_bytes,
+        ocr_text=ocr_text,
         source_type=source_type,
         source_url=source_url,
         source_title=source_title,
@@ -154,6 +156,7 @@ async def analyze(
         augmented_data = _run_pipeline_for_text(
             analysis_text, 
             image_bytes=image_bytes, 
+            ocr_text=normalized_ocr,
             source_type=source_type, 
             source_url=source_url, 
             source_title=source_title,

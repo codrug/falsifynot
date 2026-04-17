@@ -16,6 +16,7 @@ from app.ml.verifier import verify_claim
 from app.ml.ocr_service import extract_text_from_image
 from app.ml.clip_service import compute_image_text_similarity
 from app.ml.link_service import generate_external_evidence
+from app.ml.multimodal_verifier import verify_claim_multimodal, apply_multimodal_override, extract_claims_from_image
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class AnalysisService:
     def extract_claims_from_text(
         text: str,
         image_bytes: Optional[bytes] = None,
+        ocr_text: Optional[str] = None,
         source_type: str = "text",
         source_url: Optional[str] = None,
         source_title: Optional[str] = None,
@@ -41,6 +43,12 @@ class AnalysisService:
             if raw_claims:
                 logger.info("Using fallback claim generation (%s candidate(s)) for %s input.", len(raw_claims), source_type)
 
+        if not raw_claims and image_bytes:
+            raw_claims = extract_claims_from_image(image_bytes, ocr_text)
+            if raw_claims:
+                logger.info("Using LLaVA fallback claim extraction (%s candidate(s)) for image-only input.", len(raw_claims))
+
+        
         claim_candidates = []
         top_n_claims = max(1, int(settings.CLAIM_TOP_N))
 
@@ -150,6 +158,36 @@ class AnalysisService:
                     claim_text[:160],
                 )
 
+            # Multimodal verification (if image provided)
+            multimodal_contribution = None
+            if image_bytes and settings.MULTIMODAL_ENABLED:
+                try:
+                    logger.info("Running multimodal verification for claim: %s", claim_text[:100])
+                    mm_result = verify_claim_multimodal(claim_text, image_bytes)
+
+                    # Apply multimodal override logic
+                    override_result = apply_multimodal_override(best_verdict, mm_result)
+
+                    # Update verdict if multimodal changes it
+                    if override_result['verdict'] != best_verdict:
+                        logger.info("Multimodal override: %s -> %s (reason: %s)",
+                                  best_verdict, override_result['verdict'], override_result['reasoning'])
+                        best_verdict = override_result['verdict']
+                        best_verdict_conf = override_result['confidence']
+
+                    # Create multimodal contribution record
+                    multimodal_contribution = MultimodalContribution(
+                        text_only_verdict=override_result.get('original_verdict', best_verdict),
+                        with_image_verdict=best_verdict,
+                        image_impact=override_result.get('impact', 'none'),
+                        multimodal_reasoning=mm_result.get('reasoning', ''),
+                        image_caption=mm_result.get('caption', '')
+                    )
+
+                except Exception as e:
+                    logger.error("Multimodal verification failed: %s", e)
+                    multimodal_contribution = None
+
             # Build provenance graph
             provenance = AnalysisService._build_provenance_graph(claim_text, evidence_results)
 
@@ -190,6 +228,7 @@ class AnalysisService:
                 "best_evidence_score": best_evidence_score,
                 "external_evidence": external_evidence,
                 "visual_context": visual_context,
+                "multimodal_contribution": multimodal_contribution,
                 "input_source": {
                     "source_type": source_type,
                     "source_url": source_url,
@@ -222,11 +261,25 @@ class AnalysisService:
         normalized = " ".join((text or "").lower().split())
         if len(normalized.split()) < 6:
             return False
+        # Strict opinion markers. Avoid blanket-rejecting modals like "should" because OCR headlines
+        # often use quote-based political language (e.g., "X should resign ...") that is still
+        # check-worthy in context.
         if any(
             phrase in normalized
-            for phrase in ("i think", "we must", "should", "i believe", "in my opinion", "we need to")
+            for phrase in ("i think", "i believe", "in my opinion", "we need to")
         ):
             return False
+
+        # If the claim contains "should", only reject when it's likely generic advice with no
+        # "news-like" signal (numbers/years or recognizable named entities).
+        if re.search(r"\bshould\b", normalized):
+            has_context = (
+                AnalysisService._has_numeric_signal(text)
+                or bool(re.search(r"\b(19|20)\d{2}\b", text or ""))
+                or bool(re.search(r"\b[A-Z][a-z]{2,}\b", text or ""))
+            )
+            if not has_context:
+                return False
         if any(word in normalized for word in ("thing", "something", "stuff")):
             return False
         return True
@@ -436,23 +489,33 @@ class AnalysisService:
 
     @staticmethod
     def _build_provenance_graph(claim_text: str, evidence_results: List[EvidenceResult]) -> Provenance:
+        """Build provenance graph showing evidence relationships."""
         provenance_nodes = [
-            ProvenanceNode(id="claim", label="Claim", type="claim", metadata={"text": claim_text})
+            ProvenanceNode(
+                id="claim",
+                type="claim",
+                text=claim_text,
+                label="Claim"
+            )
         ]
         provenance_edges = []
+
         for i, ev in enumerate(evidence_results):
             node_id = f"e{i}"
             provenance_nodes.append(
                 ProvenanceNode(
                     id=node_id,
-                    label=f"Evidence {i+1}",
                     type="evidence",
-                    metadata={"text": ev.text, "source": ev.source, "score": ev.score}
+                    text=ev.text,
+                    source=ev.source,
+                    score=ev.score,
+                    label=f"Evidence {i+1}"
                 )
             )
             provenance_edges.append(
-                ProvenanceEdge(source="claim", target=node_id, label="supported_by")
+                ProvenanceEdge(**{"from": "claim", "to": node_id, "weight": ev.score})
             )
+
         return Provenance(nodes=provenance_nodes, edges=provenance_edges)
 
     @staticmethod

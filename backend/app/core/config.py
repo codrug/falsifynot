@@ -42,6 +42,21 @@ class Settings(BaseSettings):
     # ML Settings - Verification
     VERIFIER_MODEL_NAME: str = "MoritzLaurer/deberta-v3-base-mnli-fever-anli"
     
+    # ML Settings - Ollama and Multimodal
+    OLLAMA_ENABLED: bool = True
+    OLLAMA_HOST: str = "http://localhost"
+    OLLAMA_PORT: int = 11434
+    OLLAMA_MODEL: str = "llava:7b"  # LLaVA model name in Ollama
+    OLLAMA_TIMEOUT: int = 300  # seconds
+    
+    # Multimodal Settings
+    MULTIMODAL_ENABLED: bool = True
+    MULTIMODAL_MAX_IMAGE_SIZE: int = 1024  # max dimension for images
+    MULTIMODAL_IMAGE_FORMATS: List[str] = ["jpg", "jpeg", "png", "webp", "gif"]
+    MULTIMODAL_VERIFY_WITH_IMAGES: bool = True  # Use images for claim verification
+    MULTIMODAL_CONFIDENCE_THRESHOLD: float = 0.7
+    MULTIMODAL_DEVICE: str = "auto"  # "auto", "cuda", or "cpu"
+    
     # Pipeline Thresholds
     LOW_SIMILARITY_WARNING_THRESHOLD: float = 0.45
     LOW_VERDICT_CONFIDENCE_WARNING_THRESHOLD: float = 0.45
